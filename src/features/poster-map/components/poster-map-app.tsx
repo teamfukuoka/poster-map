@@ -110,7 +110,8 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
         : prev,
     );
     setMyBoardIds((prev) => new Set(prev).add(updated.id));
-    setSelected(null);
+    // 報告の間に別の掲示板を開いていたら、そちらは閉じない
+    setSelected((prev) => (prev?.id === updated.id ? null : prev));
   };
 
   return (

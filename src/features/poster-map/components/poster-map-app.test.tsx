@@ -114,3 +114,25 @@ test("ボランティアの読み込みが reject されたら、再読み込み
   fireEvent.click(screen.getByRole("button", { name: "もう一度読み込む" }));
   expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
 });
+
+test("報告が終わる前に別の掲示板を開いていたら、そのダイアログは閉じない", async () => {
+  jest
+    .mocked(loadVolunteerBoardsAction)
+    .mockResolvedValue({ ok: true, data: [board("1"), board("2")] });
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  jest.mocked(loadHistoryAction).mockResolvedValue({ ok: true, data: [] });
+  let resolveUpdate: (value: Awaited<ReturnType<typeof updateStatusAction>>) => void = () => {};
+  jest.mocked(updateStatusAction).mockReturnValue(
+    new Promise((resolve) => {
+      resolveUpdate = resolve;
+    }),
+  );
+  render(<PosterMapApp initialViewer={{ kind: "volunteer", displayName: "はなこ" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "pin-1" }));
+  fireEvent.click(await screen.findByRole("button", { name: "報告する" }));
+  fireEvent.click(screen.getByRole("button", { name: "pin-2", hidden: true }));
+  expect(await screen.findByText("#2 掲示板2")).toBeInTheDocument();
+  resolveUpdate({ ok: true, data: board("1", "done") });
+  await waitFor(() => expect(screen.getByTestId("summary-percent")).toHaveTextContent("50"));
+  expect(screen.getByText("#2 掲示板2")).toBeInTheDocument();
+});
