@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { loadMyBoardIdsAction, loadVolunteerBoardsAction } from "../actions";
+import { toUserMessage } from "../errors";
 import { fetchPublicBoards } from "../public-boards";
 import type { MapBoard } from "../types";
 import { useBoardFilter } from "../use-board-filter";
@@ -35,6 +36,15 @@ type Loaded = { state: LoadState; myBoardIds: ReadonlySet<string> };
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 const EMPTY_BOARDS: MapBoard[] = [];
 
+async function loadVolunteerBoards(): Promise<Loaded> {
+  const [boards, mine] = await Promise.all([loadVolunteerBoardsAction(), loadMyBoardIdsAction()]);
+  if (!boards.ok) return { state: { kind: "error", message: boards.error }, myBoardIds: EMPTY_IDS };
+  return {
+    state: { kind: "ok", boards: boards.data },
+    myBoardIds: mine.ok ? new Set(mine.data) : EMPTY_IDS,
+  };
+}
+
 async function loadBoards(isVolunteer: boolean): Promise<Loaded> {
   if (!isVolunteer) {
     const result = await fetchPublicBoards();
@@ -43,12 +53,12 @@ async function loadBoards(isVolunteer: boolean): Promise<Loaded> {
     }
     return { state: result, myBoardIds: EMPTY_IDS };
   }
-  const [boards, mine] = await Promise.all([loadVolunteerBoardsAction(), loadMyBoardIdsAction()]);
-  if (!boards.ok) return { state: { kind: "error", message: boards.error }, myBoardIds: EMPTY_IDS };
-  return {
-    state: { kind: "ok", boards: boards.data },
-    myBoardIds: mine.ok ? new Set(mine.data) : EMPTY_IDS,
-  };
+  try {
+    return await loadVolunteerBoards();
+  } catch {
+    // Server Action は通信の切断や再デプロイで reject することがある
+    return { state: { kind: "error", message: toUserMessage(null) }, myBoardIds: EMPTY_IDS };
+  }
 }
 
 export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {

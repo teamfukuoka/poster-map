@@ -5,6 +5,7 @@ import {
   loadVolunteerBoardsAction,
   updateStatusAction,
 } from "../actions";
+import { FALLBACK_MESSAGE } from "../errors";
 import { fetchPublicBoards } from "../public-boards";
 import type { MapBoard } from "../types";
 import { PosterMapApp } from "./poster-map-app";
@@ -98,6 +99,18 @@ test("読み込みに失敗したら再読み込みできる", async () => {
     .mockResolvedValueOnce({ kind: "ok", boards: [board("1")] });
   render(<PosterMapApp initialViewer={{ kind: "public" }} />);
   expect(await screen.findByRole("alert")).toHaveTextContent("読み込めませんでした");
+  fireEvent.click(screen.getByRole("button", { name: "もう一度読み込む" }));
+  expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
+});
+
+test("ボランティアの読み込みが reject されたら、再読み込みを出す", async () => {
+  jest
+    .mocked(loadVolunteerBoardsAction)
+    .mockRejectedValueOnce(new Error("network"))
+    .mockResolvedValueOnce({ ok: true, data: [board("1")] });
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  render(<PosterMapApp initialViewer={{ kind: "volunteer", displayName: "はなこ" }} />);
+  expect(await screen.findByRole("alert")).toHaveTextContent(FALLBACK_MESSAGE);
   fireEvent.click(screen.getByRole("button", { name: "もう一度読み込む" }));
   expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
 });

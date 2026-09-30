@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { loadHistoryAction, updateStatusAction } from "../actions";
+import { FALLBACK_MESSAGE } from "../errors";
 import type { MapBoard } from "../types";
 import { UpdateDialog } from "./update-dialog";
 
@@ -64,4 +65,21 @@ test("失敗したら理由を出す", async () => {
   render(<UpdateDialog board={board} onClose={jest.fn()} onUpdated={jest.fn()} />);
   fireEvent.click(screen.getByRole("button", { name: "報告する" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("参加の手続きが必要です");
+});
+
+test("履歴の読み込みが reject されたら、読み込めなかったと出す", async () => {
+  mockedHistory.mockRejectedValue(new Error("network"));
+  render(<UpdateDialog board={board} onClose={jest.fn()} onUpdated={jest.fn()} />);
+  expect(await screen.findByText("履歴を読み込めませんでした。")).toBeInTheDocument();
+});
+
+test("報告が reject されても、送信中のままにせず汎用の文言を出す", async () => {
+  mockedHistory.mockResolvedValue({ ok: true, data: [] });
+  mockedUpdate.mockRejectedValue(new Error("network"));
+  const onUpdated = jest.fn();
+  render(<UpdateDialog board={board} onClose={jest.fn()} onUpdated={onUpdated} />);
+  fireEvent.click(screen.getByRole("button", { name: "報告する" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(FALLBACK_MESSAGE);
+  expect(screen.getByRole("button", { name: "報告する" })).toBeEnabled();
+  expect(onUpdated).not.toHaveBeenCalled();
 });

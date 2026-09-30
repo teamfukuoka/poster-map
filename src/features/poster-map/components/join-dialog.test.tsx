@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { joinAction } from "../actions";
+import { FALLBACK_MESSAGE } from "../errors";
 import { JoinDialog } from "./join-dialog";
 
 jest.mock("../actions", () => ({ joinAction: jest.fn() }));
@@ -38,4 +39,14 @@ test("集める情報と、プライバシーのページを案内する", () =>
     "href",
     "/privacy",
   );
+});
+
+test("参加が reject されても、確認中のままにせず汎用の文言を出す", async () => {
+  mockedJoin.mockRejectedValue(new Error("network"));
+  const onJoined = jest.fn();
+  render(<JoinDialog open onOpenChange={jest.fn()} onJoined={onJoined} />);
+  fill("code-1", "はなこ");
+  expect(await screen.findByRole("alert")).toHaveTextContent(FALLBACK_MESSAGE);
+  expect(screen.getByRole("button", { name: "参加する" })).toBeEnabled();
+  expect(onJoined).not.toHaveBeenCalled();
 });

@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { joinAction } from "../actions";
+import { toUserMessage } from "../errors";
 import { DISPLAY_NAME_MAX_LENGTH } from "../limits";
 
 type Props = {
@@ -31,14 +32,20 @@ export function JoinDialog({ open, onOpenChange, onJoined }: Props) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
-    const result = await joinAction(code, displayName);
-    setIsSubmitting(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await joinAction(code, displayName);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setCode("");
+      onJoined(result.data.displayName);
+    } catch {
+      // Server Action は通信の切断や再デプロイで reject することがある
+      setError(toUserMessage(null));
+    } finally {
+      setIsSubmitting(false);
     }
-    setCode("");
-    onJoined(result.data.displayName);
   };
 
   return (

@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { loadHistoryAction, updateStatusAction } from "../actions";
+import { toUserMessage } from "../errors";
 import { NOTE_MAX_LENGTH } from "../limits";
 import { type BoardStatus, isBoardStatus, STATUS_CONFIG, STATUS_SELECT_ORDER } from "../status";
 import type { HistoryItem, MapBoard } from "../types";
@@ -46,9 +47,15 @@ export function UpdateDialog({ board, onClose, onUpdated }: Props) {
   useEffect(() => {
     if (!boardId) return;
     let active = true;
-    loadHistoryAction(boardId).then((result) => {
-      if (active) setHistory(result.ok ? { kind: "ok", items: result.data } : { kind: "error" });
-    });
+    // Server Action は通信の切断や再デプロイで reject することがある
+    loadHistoryAction(boardId).then(
+      (result) => {
+        if (active) setHistory(result.ok ? { kind: "ok", items: result.data } : { kind: "error" });
+      },
+      () => {
+        if (active) setHistory({ kind: "error" });
+      },
+    );
     return () => {
       active = false;
     };
@@ -59,14 +66,19 @@ export function UpdateDialog({ board, onClose, onUpdated }: Props) {
     if (!board) return;
     setIsSubmitting(true);
     setError(null);
-    const result = await updateStatusAction({ boardId: board.id, status, note });
-    setIsSubmitting(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const result = await updateStatusAction({ boardId: board.id, status, note });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      toast.success("報告しました。ありがとうございます。");
+      onUpdated(result.data);
+    } catch {
+      setError(toUserMessage(null));
+    } finally {
+      setIsSubmitting(false);
     }
-    toast.success("報告しました。ありがとうございます。");
-    onUpdated(result.data);
   };
 
   return (
