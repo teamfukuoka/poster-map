@@ -9,6 +9,7 @@ import { Expand, LocateFixed, Minimize } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_ZOOM, MAP_CENTER, MAX_ZOOM } from "../area";
+import { flyToBoard } from "../fly-to-board";
 import {
   boardTooltipHtml,
   clusterIconHtml,
@@ -51,6 +52,8 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const locationRef = useRef<L.CircleMarker | null>(null);
+  /** 検索で最後に選んだ掲示板。移動の間に選び直されたら、前のダイアログは開かない */
+  const lastSearchedRef = useRef<MapBoard | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
 
@@ -171,8 +174,12 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
     );
   };
 
+  // 検索で選んだら、その掲示板まで移動してからマーカーを押したときと同じダイアログを開く
   const handleSearchSelect = (board: MapBoard) => {
-    mapRef.current?.flyTo([board.lat, board.long], MAX_ZOOM, { duration: 1 });
+    const map = mapRef.current;
+    if (!map) return;
+    lastSearchedRef.current = board;
+    flyToBoard(map, board, MAX_ZOOM, (b) => lastSearchedRef.current === b, onBoardClick);
   };
 
   useEffect(() => {
