@@ -1,0 +1,29 @@
+name: keepalive
+
+# Supabase の無料枠は、しばらく使われないと一時停止する。
+# 3 日ごとに /api/boards を 1 回叩いて DB に触れる（公開期間外は 404 が正常）。
+on:
+  schedule:
+    - cron: "17 3 */3 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: /api/boards を叩く
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          if [ -z "$SITE_URL" ]; then
+            echo "リポジトリの変数 SITE_URL を設定してください" >&2
+            exit 1
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' "$SITE_URL/api/boards")
+          echo "HTTP $code"
+          case "$code" in
+            200|404) ;;
+            *) exit 1 ;;
+          esac
