@@ -69,7 +69,8 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      chunkedLoading: true,
+      // 1,644 件なら一度に追加できる。分割すると clearLayers と競合して古いマーカーが残る
+      chunkedLoading: false,
       removeOutsideVisibleBounds: true,
       spiderfyDistanceMultiplier: 2,
       spiderLegPolylineOptions: { weight: 2, color: "#222", opacity: 0.5 },
