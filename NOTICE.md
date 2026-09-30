@@ -24,6 +24,7 @@ Modified in 2026-10 by the operators of this repository:
 | File | Upstream |
 |---|---|
 | `src/features/poster-map/components/poster-map.tsx` | `src/features/map-poster/components/poster-map-with-cluster.tsx` |
+| `src/features/poster-map/fly-to-board.ts` | `src/features/map-poster/components/poster-map-with-cluster.tsx` (search result flyTo) |
 | `src/features/poster-map/components/poster-map-app.tsx` | `src/features/map-poster/components/detailed-poster-map-client.tsx`, `poster-map-page-client-optimized.tsx` (page composition) |
 | `src/features/poster-map/components/board-filter.tsx` | `src/features/map-poster/components/poster-board-filter.tsx` |
 | `src/features/poster-map/components/board-search.tsx` | `src/features/map-poster/components/poster-board-search.tsx` |

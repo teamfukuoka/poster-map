@@ -1,3 +1,4 @@
+// Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10.
 import type L from "leaflet";
 import type { MapBoard } from "./types";
 
