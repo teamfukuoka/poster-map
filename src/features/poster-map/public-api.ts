@@ -8,10 +8,24 @@ export const CLOSED_CACHE_CONTROL = "public, max-age=0, s-maxage=30";
 export const NO_STORE = "no-store";
 
 export type PublicApiResult = {
-  status: 200 | 404 | 500;
+  status: 200 | 400 | 404 | 500;
   cacheControl: string;
-  body: { boards: MapBoard[] } | { error: "closed" | "unavailable" };
+  body: { boards: MapBoard[] } | { error: "closed" | "unavailable" | "bad_request" };
 };
+
+/**
+ * CDN のキャッシュはクエリ文字列ごとに分かれるので、`?t=1` のような URL で
+ * 毎回 Supabase まで届いてしまう。アプリ自身はクエリなしで呼ぶので、付いていたら DB に触れずに断る。
+ */
+export const QUERY_REJECTED: PublicApiResult = {
+  status: 400,
+  cacheControl: CLOSED_CACHE_CONTROL,
+  body: { error: "bad_request" },
+};
+
+export function hasQueryString(url: string): boolean {
+  return new URL(url).search !== "";
+}
 
 /** /api/boards の中身。匿名クライアントで読むので、公開期間外は RLS でも空になる */
 export async function buildPublicBoardsResponse(
