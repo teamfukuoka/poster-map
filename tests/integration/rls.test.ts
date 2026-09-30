@@ -261,3 +261,133 @@ describe("履歴と参加情報の見え方", () => {
     expect(error).not.toBeNull();
   });
 });
+
+describe("関数の EXECUTE 権限（migration の grant / revoke と一致する）", () => {
+  // 引数の型は supabase/migrations/*_poster_map.sql の関数定義と同じにする
+  const expected = [
+    { signature: "public.is_active_volunteer()", anon: true, authenticated: true },
+    { signature: "public.is_public_window()", anon: true, authenticated: true },
+    { signature: "public.register_volunteer(text, text)", anon: false, authenticated: true },
+    {
+      signature: "public.update_board_status(uuid, public.poster_board_status, text)",
+      anon: false,
+      authenticated: true,
+    },
+  ] as const;
+
+  test("public スキーマの全関数について anon / authenticated / public の権限が意図どおり", async () => {
+    const actual = await withPg(async (db) => {
+      const rows: { signature: string; anon: boolean; authenticated: boolean; public: boolean }[] =
+        [];
+      for (const { signature } of expected) {
+        const result = await db.query<{ anon: boolean; authenticated: boolean; public: boolean }>(
+          "select has_function_privilege('anon', $1, 'execute') as anon, has_function_privilege('authenticated', $1, 'execute') as authenticated, has_function_privilege('public', $1, 'execute') as public",
+          [signature],
+        );
+        rows.push({ signature, ...result.rows[0] });
+      }
+      return rows;
+    });
+    expect(actual).toEqual(
+      expected.map(({ signature, anon, authenticated }) => ({
+        signature,
+        anon,
+        authenticated,
+        public: false,
+      })),
+    );
+  });
+
+  test("上の表は public スキーマの関数を漏れなく含む（関数を足したら表も足す）", async () => {
+    const functions = await withPg((db) =>
+      db.query<{ name: string }>(
+        `select p.proname as name
+         from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public'
+           and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+         order by p.proname`,
+      ),
+    );
+    expect(functions.rows.map((row) => row.name)).toEqual(
+      expected.map(({ signature }) => signature.slice("public.".length).split("(")[0]).sort(),
+    );
+  });
+});
+
+describe("直接書き込み・private schema へのアクセスは拒否される", () => {
+  const count = (table: string) =>
+    withPg(async (db) => {
+      const result = await db.query<{ n: string }>(`select count(*) as n from ${table}`);
+      return Number(result.rows[0].n);
+    });
+
+  test("匿名サインインしただけのユーザーは volunteers に自分を insert できない", async () => {
+    const { client, userId } = await signInAnon();
+    const { error } = await client
+      .from("volunteers")
+      .insert({ user_id: userId, display_name: "x" });
+    expect(error).not.toBeNull();
+    expect(await count("public.volunteers")).toBe(0);
+  });
+
+  test("停止されたボランティアは volunteers を update して停止を解除できない", async () => {
+    const { client, userId } = await signInVolunteer("たろう");
+    await revokeVolunteer(userId);
+    const { error } = await client
+      .from("volunteers")
+      .update({ revoked_at: null })
+      .eq("user_id", userId);
+    expect(error).not.toBeNull();
+    const row = await withPg((db) =>
+      db.query("select revoked_at from public.volunteers where user_id = $1", [userId]),
+    );
+    expect(row.rows[0].revoked_at).not.toBeNull();
+  });
+
+  test("ボランティアは poster_board_status_history に直接 insert できない", async () => {
+    const id = await insertBoard("A-1");
+    const { client, userId } = await signInVolunteer("たろう");
+    const { error } = await client.from("poster_board_status_history").insert({
+      board_id: id,
+      user_id: userId,
+      display_name: "たろう",
+      previous_status: "not_yet",
+      new_status: "done",
+    });
+    expect(error).not.toBeNull();
+    expect(await count("public.poster_board_status_history")).toBe(0);
+  });
+
+  test("未ログインは poster_boards に insert も delete もできない", async () => {
+    const id = await insertBoard("A-1");
+    const anon = anonClient();
+    const inserted = await anon.from("poster_boards").insert({
+      number: "A-2",
+      name: "掲示板A-2",
+      address: "中央区天神A-2",
+      ward: "中央区",
+      lat: 33.59,
+      long: 130.4,
+    });
+    expect(inserted.error).not.toBeNull();
+    const deleted = await anon.from("poster_boards").delete().eq("id", id);
+    expect(deleted.error).not.toBeNull();
+    expect(await count("public.poster_boards")).toBe(1);
+  });
+
+  test("private schema の参加コードは API から読めない", async () => {
+    const { client } = await signInVolunteer("たろう");
+    // private は生成された型に無いので、schema 名だけ最小限のキャストで渡す
+    const volunteer = await client
+      .schema("private" as never)
+      .from("invite_codes" as never)
+      .select();
+    expect(volunteer.error).not.toBeNull();
+    const anon = await anonClient()
+      .schema("private" as never)
+      .from("invite_codes" as never)
+      .select();
+    expect(anon.error).not.toBeNull();
+  });
+});
