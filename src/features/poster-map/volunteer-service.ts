@@ -116,13 +116,15 @@ export async function updateStatus(
   if (!isBoardStatus(input.status)) {
     return { ok: false, error: toUserMessage(null) };
   }
-  if (input.note.trim().length > NOTE_MAX_LENGTH) {
+  // DB でも取り除くが、上限の判定と同じ trim をここで済ませてから渡す
+  const note = input.note.trim();
+  if (note.length > NOTE_MAX_LENGTH) {
     return { ok: false, error: toUserMessage({ message: "note_too_long" }) };
   }
   const { data, error } = await client.rpc("update_board_status", {
     p_board_id: input.boardId,
     p_status: input.status,
-    p_note: input.note,
+    p_note: note,
   });
   if (error || !data) return { ok: false, error: toUserMessage(error) };
   const { id, number, name, address, ward, lat, long, status } = data;

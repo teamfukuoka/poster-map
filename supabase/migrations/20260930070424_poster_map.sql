@@ -94,6 +94,20 @@ create index poster_board_status_history_user_idx
 
 -- 関数 ---------------------------------------------------------------
 
+-- 前後の空白を取り除く。JavaScript の String.prototype.trim と同じ文字
+-- （タブ・改行・全角空白などの Unicode の空白）を対象にする。btrim の既定は半角スペースだけ。
+create function private.trim_js(p text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select btrim(
+    p,
+    E'\t\n\u000B\f\r \u00A0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF'
+  );
+$$;
+
 create function public.is_active_volunteer()
 returns boolean
 language sql
@@ -135,7 +149,7 @@ set search_path = ''
 as $$
 declare
   v_uid uuid := (select auth.uid());
-  v_name text := btrim(coalesce(p_display_name, ''));
+  v_name text := private.trim_js(coalesce(p_display_name, ''));
   v_code_id uuid;
   v_row public.volunteers;
   v_result public.register_volunteer_result;
@@ -208,7 +222,7 @@ as $$
 declare
   v_uid uuid := (select auth.uid());
   v_name text;
-  v_note text := nullif(btrim(coalesce(p_note, '')), '');
+  v_note text := nullif(private.trim_js(coalesce(p_note, '')), '');
   v_previous public.poster_board_status;
   v_row public.poster_boards;
 begin
@@ -271,6 +285,7 @@ grant execute on function
 
 -- private schema は anon / authenticated から使えないが、念のため表の権限も外して RLS を有効にする
 revoke all on private.invite_code_failures from public, anon, authenticated;
+revoke execute on function private.trim_js(text) from public, anon, authenticated;
 alter table private.invite_code_failures enable row level security;
 
 -- RLS ----------------------------------------------------------------

@@ -100,8 +100,15 @@ describe("register_volunteer", () => {
     expect(rows).toEqual([{ user_id: userId, display_name: "たろう" }]);
   });
 
+  test("名前の前後の全角空白・改行も取り除かれる（JS の trim と同じ）", async () => {
+    const { client } = await signInAnon();
+    const { data } = await register(client, TEST_INVITE_CODE, "\u3000\n たろう\t\u3000");
+    expect(data?.display_name).toBe("たろう");
+  });
+
   test.each([
     ["名前が空", TEST_INVITE_CODE, "   ", "invalid_display_name"],
+    ["名前が全角空白だけ", TEST_INVITE_CODE, "\u3000\u3000", "invalid_display_name"],
     ["名前が21文字", TEST_INVITE_CODE, "あ".repeat(21), "invalid_display_name"],
   ])("%s は拒否される", async (_label, code, name, message) => {
     const { client } = await signInAnon();
@@ -225,6 +232,26 @@ describe("update_board_status", () => {
         note: "貼りました",
       },
     ]);
+  });
+
+  test("連絡事項の前後の全角空白・改行も取り除かれる（JS の trim と同じ）", async () => {
+    const id = await insertBoard("A-1");
+    const { client } = await signInVolunteer("たろう");
+    await client.rpc("update_board_status", {
+      p_board_id: id,
+      p_status: "done",
+      p_note: "\u3000\n貼りました\r\n\u3000",
+    });
+    await client.rpc("update_board_status", {
+      p_board_id: id,
+      p_status: "reserved",
+      p_note: "\u3000\n\t",
+    });
+    const history = await client
+      .from("poster_board_status_history")
+      .select("note")
+      .order("created_at");
+    expect(history.data).toEqual([{ note: "貼りました" }, { note: null }]);
   });
 
   test("空の連絡事項は null で保存される", async () => {
@@ -448,6 +475,15 @@ describe("直接書き込み・private schema へのアクセスは拒否され�
       .from(table as never)
       .select();
     expect(anon.error).not.toBeNull();
+  });
+
+  test("private.trim_js は anon / authenticated から実行できない", async () => {
+    const result = await withPg((db) =>
+      db.query<{ anon: boolean; authenticated: boolean; public: boolean }>(
+        "select has_function_privilege('anon', 'private.trim_js(text)', 'execute') as anon, has_function_privilege('authenticated', 'private.trim_js(text)', 'execute') as authenticated, has_function_privilege('public', 'private.trim_js(text)', 'execute') as public",
+      ),
+    );
+    expect(result.rows[0]).toEqual({ anon: false, authenticated: false, public: false });
   });
 
   test("private.invite_code_failures は anon / authenticated に権限がなく、RLS も有効", async () => {

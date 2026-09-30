@@ -154,6 +154,30 @@ describe("報告と履歴", () => {
     expect(await loadMyBoardIds(client)).toEqual({ ok: true, data: [boardId] });
   });
 
+  test("前後の空白は JS の trim で取り除いてから渡す（全角空白を含めて 500 文字を超えても、中身が 500 文字なら通る）", async () => {
+    const boardId = await insertBoard("A-1");
+    const { client } = await signInVolunteer("はなこ");
+    const note = "あ".repeat(500);
+    const updated = await updateStatus(client, {
+      boardId,
+      status: "done",
+      note: `\u3000${note}\n`,
+    });
+    expect(updated.ok).toBe(true);
+    const history = await loadHistory(client, boardId);
+    expect(history.ok && history.data[0].note).toBe(note);
+  });
+
+  test("ニックネームも JS の trim で取り除いてから渡す", async () => {
+    const client = anonClient();
+    const result = await joinAsVolunteer(
+      client,
+      TEST_INVITE_CODE,
+      `\u3000${"あ".repeat(20)}\u3000`,
+    );
+    expect(result).toEqual({ ok: true, data: { displayName: "あ".repeat(20) } });
+  });
+
   test("不正なステータス・長すぎる連絡事項・参加していない人は断る", async () => {
     const boardId = await insertBoard("A-1");
     const { client } = await signInVolunteer("はなこ");
