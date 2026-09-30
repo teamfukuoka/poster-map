@@ -233,10 +233,11 @@ alter table public.poster_boards enable row level security;
 alter table public.volunteers enable row level security;
 alter table public.poster_board_status_history enable row level security;
 
-create policy "公開期間中は誰でも、ボランティアはいつでも掲示板を読める"
+create policy "掲示板の読み取り（公開中か参加者）"
   on public.poster_boards for select
   to anon, authenticated
   using ((select public.is_public_window()) or (select public.is_active_volunteer()));
+comment on policy "掲示板の読み取り（公開中か参加者）" on public.poster_boards is '公開期間中は誰でも、ボランティアはいつでも掲示板を読める';
 
 create policy "ボランティアは履歴を読める"
   on public.poster_board_status_history for select
