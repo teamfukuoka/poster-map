@@ -125,7 +125,10 @@ export function reconcile(
   return { rows, dropped: base.filter((board) => !used.has(board.number)) };
 }
 
-/** 場所が変わったもの・新しいものに座標を付ける。見つからなければ座標を空にして取り込みで止まるようにする */
+/**
+ * 場所が変わったもの・新しいものに座標を付ける。見つからなければ座標を空にして取り込みで止まるようにする。
+ * 町・大字の代表点しか得られなかったものは note を「要確認:町の代表点」にして区別する。
+ */
 export async function geocodePending(
   rows: readonly ReconcileRow[],
   geocode: (address: string) => Promise<GeocodeHit | null>,
@@ -150,7 +153,7 @@ export async function geocodePending(
             ...row,
             lat: hit.lat,
             long: hit.long,
-            note: `要確認:ジオコーディング(${hit.title})${previous}`,
+            note: `${hit.precise ? "要確認:ジオコーディング" : "要確認:町の代表点"}(${hit.title})${previous}`,
           }
         : { ...row, lat: null, long: null, note: `要確認:座標なし${previous}` },
     );
@@ -232,6 +235,7 @@ export function toReport(result: ReconcileResult): string {
     `## 要確認（${review.length} 件）`,
     "",
     "地図で位置を確かめ、座標を直したら note を空にする。「座標なし」は lat,long を埋めるまで取り込めない。",
+    "「町の代表点」は番地まで見つからず町・大字の代表点の座標が入っているので、必ず位置を直す。",
     "",
     ...review.map((row) => `- ${row.number} ${row.address}（${row.name}）: ${row.note}`),
     "",

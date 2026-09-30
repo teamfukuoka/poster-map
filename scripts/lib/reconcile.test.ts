@@ -56,7 +56,7 @@ test("場所の変更・新規だけをジオコーディングし、見つか�
     async (address) => {
       asked.push(address);
       return address.includes("大名")
-        ? { lat: 33.589, long: 130.393, title: "福岡県福岡市中央区大名一丁目" }
+        ? { lat: 33.589, long: 130.393, title: "福岡県福岡市中央区大名一丁目", precise: true }
         : null;
     },
     async () => {},
@@ -96,7 +96,12 @@ test("住所の書き方の違い（漢数字・丁目・番・号・ハイフ�
 test("レポートの「場所が変わった掲示板」に旧住所と旧座標からの距離を出す", async () => {
   const rows = await geocodePending(
     reconcile(senkan, base).rows,
-    async () => ({ lat: 33.589, long: 130.393, title: "福岡県福岡市中央区大名一丁目" }),
+    async () => ({
+      lat: 33.589,
+      long: 130.393,
+      title: "福岡県福岡市中央区大名一丁目",
+      precise: true,
+    }),
     async () => {},
   );
   const report = toReport({ rows, dropped: [] });
@@ -104,6 +109,19 @@ test("レポートの「場所が変わった掲示板」に旧住所と旧座�
   expect(report).toContain("- A-2 中央区大名1丁目（b）: 旧住所 中央区天神2丁目 / 旧座標から 774m");
   const notFound = toReport(reconcile(senkan, base));
   expect(notFound).toContain("- A-2 中央区大名1丁目（b）: 旧住所 中央区天神2丁目 / 座標なし");
+});
+
+test("町の代表点しか得られなかったら、note でそれと分かるようにする", async () => {
+  const rows = await geocodePending(
+    reconcile(senkan, base).rows,
+    async () => ({ lat: 33.5885, long: 130.3935, title: "福岡県福岡市中央区大名", precise: false }),
+    async () => {},
+  );
+  expect(rows[1].note).toMatch(
+    /^要確認:町の代表点\(福岡県福岡市中央区大名\) 旧住所:中央区天神2丁目 旧座標から\d+m$/,
+  );
+  expect(rows[3].note).toBe("要確認:町の代表点(福岡県福岡市中央区大名)");
+  expect(toReport({ rows, dropped: [] })).toContain("「町の代表点」は番地まで見つからず");
 });
 
 test("出力した CSV は取り込みの正規化で読め、要確認は取り込みを止める", async () => {
