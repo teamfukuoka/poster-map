@@ -6,8 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "biome check",
-    "format": "biome format --write"
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --passWithNoTests",
+    "test:integration": "bash scripts/test-integration.sh",
+    "check:branding": "bash scripts/check-branding.sh",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:branding",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts",
+    "import:boards": "tsx scripts/import-boards.ts",
+    "reconcile:boards": "tsx scripts/reconcile-boards.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
