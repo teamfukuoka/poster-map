@@ -9,13 +9,13 @@ export function SummaryBar({ boards }: { boards: readonly { status: BoardStatus 
       <div className="flex items-baseline gap-4">
         <div className="flex items-baseline gap-1">
           <span data-testid="summary-total" className="font-bold text-2xl">
-            {total}
+            {total.toLocaleString("ja-JP")}
           </span>
           <span className="text-muted-foreground text-xs">か所</span>
         </div>
         <div className="flex items-baseline gap-1">
           <span data-testid="summary-done" className="font-bold text-2xl text-green-600">
-            {counts.done}
+            {counts.done.toLocaleString("ja-JP")}
           </span>
           <span className="text-muted-foreground text-xs">完了</span>
         </div>

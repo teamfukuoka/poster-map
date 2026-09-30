@@ -18,6 +18,16 @@ test("SummaryBar は総数・完了・完了率・内訳を出す", () => {
   expect(screen.getByText("他候補")).toHaveTextContent("他候補1");
 });
 
+test("SummaryBar は総数と完了を桁区切りで出す", () => {
+  const many = [
+    ...Array.from({ length: 1_200 }, () => ({ status: "done" as BoardStatus })),
+    ...Array.from({ length: 444 }, () => ({ status: "not_yet" as BoardStatus })),
+  ];
+  render(<SummaryBar boards={many} />);
+  expect(screen.getByTestId("summary-total")).toHaveTextContent("1,644");
+  expect(screen.getByTestId("summary-done")).toHaveTextContent("1,200");
+});
+
 test("WardSummary は区の並び順（東区が先）で行を出す", () => {
   render(<WardSummary boards={boards} />);
   const rows = screen.getAllByRole("row").slice(1);
