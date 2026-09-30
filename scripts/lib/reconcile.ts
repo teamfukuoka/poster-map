@@ -36,7 +36,7 @@ export function toSenkanRows(rows: readonly CsvRow[]): SenkanRow[] {
   }
   const seen = new Set<string>();
   return rows.map((row, index) => {
-    if (row.number === "" || row.address === "") {
+    if (row.number.trim() === "" || row.address.trim() === "") {
       throw new Error(`選管一覧の ${index + 2} 行目: number と address は必須です`);
     }
     if (seen.has(row.number)) {

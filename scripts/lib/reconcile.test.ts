@@ -186,6 +186,12 @@ test("選管一覧の CSV を検査する", () => {
   ]);
   expect(() => toSenkanRows(parseCsv("number,name\nA-1,a\n"))).toThrow("address 列がありません");
   expect(() => toSenkanRows(parseCsv("number,address,name\nA-1,,a\n"))).toThrow("2 行目");
+  expect(() => toSenkanRows(parseCsv("number,address,name\n,中央区天神1丁目,a\n"))).toThrow(
+    "2 行目",
+  );
+  expect(() => toSenkanRows(parseCsv("number,address,name\n  ,中央区天神1丁目,a\n"))).toThrow(
+    "2 行目",
+  );
   expect(() => toSenkanRows(parseCsv("number,address,name\nA-1,x,a\nA-1,y,b\n"))).toThrow(
     "番号が重複しています: A-1",
   );

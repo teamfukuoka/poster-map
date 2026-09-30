@@ -22,6 +22,8 @@ export type NormalizeResult = {
   outOfArea: string[];
   /** 住所から区が分からない番号 */
   unknownWard: string[];
+  /** 番号が空の行（番号の代わりに住所で示す） */
+  missingNumber: string[];
   /** 「削除」以外のメモ */
   notes: { number: string; note: string }[];
 };
@@ -62,8 +64,13 @@ export function normalizeBoards(
     }
   }
 
+  const missingNumber: string[] = [];
   const byNumber = new Map<string, CsvRow[]>();
   for (const row of rows) {
+    if ((row.number ?? "").trim() === "") {
+      missingNumber.push(row.address || "(住所なし)");
+      continue;
+    }
     const list = byNumber.get(row.number) ?? [];
     list.push(row);
     byNumber.set(row.number, list);
@@ -76,6 +83,7 @@ export function normalizeBoards(
     conflicts: [],
     outOfArea: [],
     unknownWard: [],
+    missingNumber,
     notes: [],
   };
 
@@ -133,6 +141,9 @@ export function normalizeBoards(
 /** 取り込みを止めるべき問題の一覧（空なら取り込める） */
 export function blockingProblems(result: NormalizeResult): string[] {
   const problems: string[] = [];
+  if (result.missingNumber.length > 0) {
+    problems.push(`番号がない: ${result.missingNumber.join(", ")}`);
+  }
   if (result.missingCoordinates.length > 0) {
     problems.push(`座標がない: ${result.missingCoordinates.join(", ")}`);
   }

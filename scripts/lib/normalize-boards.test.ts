@@ -89,6 +89,29 @@ describe("normalizeBoards", () => {
     expect(boards[0]).toMatchObject({ address: "早良区次郎丸3丁目", ward: "早良区" });
   });
 
+  test("番号が空の行は掲示板にせず、取り込みを止める（住所で示す）", () => {
+    const result = normalizeBoards(
+      rows(
+        "福岡県,福岡市,,中央区天神1丁目,番号なし,33.59,130.40,",
+        "福岡県,福岡市, ,中央区天神2丁目,番号が空白,33.59,130.40,",
+        "福岡県,福岡市,,,住所も番号もなし,33.59,130.40,",
+        "福岡県,福岡市,A-3,中央区天神3丁目,掲示板,33.59,130.40,",
+      ),
+    );
+    expect(result.boards.map((b) => b.number)).toEqual(["A-3"]);
+    expect(result.missingNumber).toEqual(["中央区天神1丁目", "中央区天神2丁目", "(住所なし)"]);
+    expect(blockingProblems(result)).toEqual([
+      "番号がない: 中央区天神1丁目, 中央区天神2丁目, (住所なし)",
+    ]);
+  });
+
+  test("番号が空の行は「削除」でも取り込みを止める", () => {
+    const result = normalizeBoards(
+      rows("福岡県,福岡市,,中央区天神1丁目,番号なし,33.59,130.40,削除"),
+    );
+    expect(blockingProblems(result)).toEqual(["番号がない: 中央区天神1丁目"]);
+  });
+
   test("取り込めない問題を集める", () => {
     const result = normalizeBoards(
       rows(
