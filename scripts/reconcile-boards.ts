@@ -50,6 +50,12 @@ async function main() {
   console.log(
     "レポートの「要確認」を地図で確かめ、note を空にしてから pnpm import:boards に渡してください。",
   );
+  const renumbered = rows.filter((row) => row.kind === "renumbered").length;
+  if (renumbered > 0) {
+    console.log(
+      `番号だけ変わった掲示板が ${renumbered} 件あります。予約・報告の履歴を引き継ぐには、取り込みの前にレポートの SQL を DB で実行してください。`,
+    );
+  }
 }
 
 main().catch((error: unknown) => {

@@ -97,6 +97,32 @@ test("レポートに件数と要確認・なくなったものを載せる", ()
   expect(report).toContain("- A-4 中央区天神4丁目（d）");
 });
 
+test("番号だけ変わった掲示板は、旧番号を引き継ぐ SQL をレポートに出す", () => {
+  const result = reconcile(senkan, base);
+  expect(result.rows[2].previous?.number).toBe("A-3");
+  const report = toReport(result);
+  expect(report).toContain("## 番号だけ変わった掲示板（1 件）");
+  expect(report).toContain("update public.poster_boards set number = 'B-9' where number = 'A-3';");
+  // SQL を実行しなかったときに旧番号も --prune で消えることを説明する
+  expect(report).toMatch(/SQL を実行しなかった場合は.*A-3/);
+});
+
+test("引き継ぎの SQL は値を SQL の文字列としてエスケープする", () => {
+  const result = reconcile(
+    [{ number: "O'Brien-2", address: "中央区天神1丁目", name: "a" }],
+    [{ ...base[0], number: "O'Brien-1" }],
+  );
+  expect(toReport(result)).toContain(
+    "update public.poster_boards set number = 'O''Brien-2' where number = 'O''Brien-1';",
+  );
+});
+
+test("番号だけ変わった掲示板がなければ SQL を出さない", () => {
+  const report = toReport(reconcile([senkan[0]], base));
+  expect(report).toContain("## 番号だけ変わった掲示板（0 件）");
+  expect(report).not.toContain("update public.poster_boards");
+});
+
 test("選管一覧の CSV を検査する", () => {
   expect(toSenkanRows(parseCsv("number,address,name,memo\nA-1, 中央区天神1丁目 ,a,x\n"))).toEqual([
     { number: "A-1", address: "中央区天神1丁目", name: "a" },
