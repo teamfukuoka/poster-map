@@ -97,6 +97,17 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
     };
   }, [isVolunteer, reloadKey]);
 
+  // ボランティアはタブに戻ったとき、ほかの人の報告を反映するため裏で取り直す
+  // （一般の閲覧者は /api/boards の CDN キャッシュがあるので取り直さない）
+  useEffect(() => {
+    if (!isVolunteer) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") setReloadKey((k) => k + 1);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [isVolunteer]);
+
   const boards = state.kind === "ok" ? state.boards : EMPTY_BOARDS;
   const filter = useBoardFilter(boards, myBoardIds);
 

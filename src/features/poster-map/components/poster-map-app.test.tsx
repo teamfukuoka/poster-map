@@ -52,7 +52,8 @@ const board = (id: string, status: MapBoard["status"] = "not_yet"): MapBoard => 
   status,
 });
 
-beforeEach(() => jest.clearAllMocks());
+// mockResolvedValueOnce の残りが次のテストに漏れないよう、実装ごと戻す
+beforeEach(() => jest.resetAllMocks());
 
 test("一般の人には公開 API の掲示板を出し、押すと情報ダイアログを開く", async () => {
   jest
@@ -184,4 +185,44 @@ test("参加をやめた後に上のボタンから参加したら、報告は�
   expect(await screen.findByText("はなこ さんとして参加中")).toBeInTheDocument();
   await waitFor(() => expect(loadVolunteerBoardsAction).toHaveBeenCalled());
   expect(screen.queryByText("ポスターの状況を報告")).not.toBeInTheDocument();
+});
+
+function returnToTab() {
+  Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+  fireEvent(document, new Event("visibilitychange"));
+}
+
+test("ボランティアはタブに戻ったとき、地図を残したまま掲示板を取り直す", async () => {
+  jest
+    .mocked(loadVolunteerBoardsAction)
+    .mockResolvedValueOnce({ ok: true, data: [board("1")] })
+    .mockResolvedValueOnce({ ok: true, data: [board("1"), board("2")] });
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  render(<PosterMapApp initialViewer={{ kind: "volunteer", displayName: "はなこ" }} />);
+  expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
+  returnToTab();
+  expect(screen.getByTestId("map-count")).toHaveTextContent("1");
+  await waitFor(() => expect(screen.getByTestId("map-count")).toHaveTextContent("2"));
+});
+
+test("タブに戻ったときの取り直しに失敗しても、今の表示を残す", async () => {
+  jest
+    .mocked(loadVolunteerBoardsAction)
+    .mockResolvedValueOnce({ ok: true, data: [board("1")] })
+    .mockRejectedValueOnce(new Error("network"));
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  render(<PosterMapApp initialViewer={{ kind: "volunteer", displayName: "はなこ" }} />);
+  expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
+  returnToTab();
+  await waitFor(() => expect(loadVolunteerBoardsAction).toHaveBeenCalledTimes(2));
+  expect(screen.getByTestId("map-count")).toHaveTextContent("1");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+});
+
+test("一般の閲覧者はタブに戻っても取り直さない", async () => {
+  jest.mocked(fetchPublicBoards).mockResolvedValue({ kind: "ok", boards: [board("1")] });
+  render(<PosterMapApp initialViewer={{ kind: "public" }} />);
+  expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
+  returnToTab();
+  expect(fetchPublicBoards).toHaveBeenCalledTimes(1);
 });
