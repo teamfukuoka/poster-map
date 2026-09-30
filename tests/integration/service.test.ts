@@ -95,6 +95,22 @@ describe("joinAsVolunteer", () => {
     expect(result).toEqual({ ok: false, error: "参加コードが正しくありません。" });
   });
 
+  test("参加コードを続けて間違えると、正しいコードでも受け付けない", async () => {
+    const client = anonClient();
+    for (let i = 0; i < 5; i++) {
+      expect(await joinAsVolunteer(client, `wrong-${i}`, "じろう")).toEqual({
+        ok: false,
+        error: "参加コードが正しくありません。",
+      });
+    }
+    expect(await joinAsVolunteer(client, TEST_INVITE_CODE, "じろう")).toEqual({
+      ok: false,
+      error:
+        "参加コードの入力に続けて失敗したため、受付を一時停止しています。15分ほどたってから、もう一度お試しください。",
+    });
+    expect(await getViewer(client)).toEqual({ kind: "public" });
+  });
+
   test("ニックネームが長すぎれば DB を呼ばずに断る", async () => {
     const client = anonClient();
     const result = await joinAsVolunteer(client, TEST_INVITE_CODE, "あ".repeat(21));

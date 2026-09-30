@@ -58,6 +58,24 @@ create table public.volunteers (
   revoked_at timestamptz
 );
 
+-- 参加コードの失敗の記録（総当たり対策）。register_volunteer だけが読み書きする。
+-- ユーザーを消す（delete from auth.users）と一緒に消える
+create table private.invite_code_failures (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+create index invite_code_failures_user_idx
+  on private.invite_code_failures (user_id, created_at);
+
+-- register_volunteer の戻り値。参加コードの誤りは例外にせず error で返す
+-- （例外にすると rollback で失敗の記録まで消えるため）
+create type public.register_volunteer_result as (
+  display_name text,
+  error text
+);
+
 create table public.poster_board_status_history (
   id uuid primary key default gen_random_uuid(),
   board_id uuid not null references public.poster_boards (id) on delete cascade,
@@ -107,8 +125,10 @@ as $$
   );
 $$;
 
+-- 参加コードの試行は、1 ユーザーあたり 15 分に 5 回の失敗まで。
+-- 上限に達したら bcrypt を計算する前に断る。
 create function public.register_volunteer(p_code text, p_display_name text)
-returns public.volunteers
+returns public.register_volunteer_result
 language plpgsql
 security definer
 set search_path = ''
@@ -118,9 +138,22 @@ declare
   v_name text := btrim(coalesce(p_display_name, ''));
   v_code_id uuid;
   v_row public.volunteers;
+  v_result public.register_volunteer_result;
 begin
   if v_uid is null then
     raise exception 'not_authenticated';
+  end if;
+
+  -- 同じユーザーの同時の呼び出しを順番に処理し、並列で上限をすり抜けられないようにする
+  perform pg_advisory_xact_lock(hashtextextended('register_volunteer:' || v_uid::text, 0));
+
+  if (
+    select count(*)
+    from private.invite_code_failures
+    where user_id = v_uid
+      and created_at > now() - interval '15 minutes'
+  ) >= 5 then
+    raise exception 'too_many_attempts';
   end if;
 
   if char_length(v_name) < 1 or char_length(v_name) > 20 then
@@ -134,7 +167,13 @@ begin
   limit 1;
 
   if v_code_id is null then
-    raise exception 'invalid_invite_code';
+    -- 窓の外の古い記録はここで消す
+    delete from private.invite_code_failures
+    where user_id = v_uid
+      and created_at <= now() - interval '15 minutes';
+    insert into private.invite_code_failures (user_id) values (v_uid);
+    v_result.error := 'invalid_invite_code';
+    return v_result;
   end if;
 
   if exists (
@@ -149,7 +188,10 @@ begin
   on conflict (user_id) do update set display_name = excluded.display_name
   returning * into v_row;
 
-  return v_row;
+  delete from private.invite_code_failures where user_id = v_uid;
+
+  v_result.display_name := v_row.display_name;
+  return v_result;
 end;
 $$;
 
@@ -226,6 +268,10 @@ grant execute on function
   public.register_volunteer(text, text),
   public.update_board_status(uuid, public.poster_board_status, text)
   to authenticated;
+
+-- private schema は anon / authenticated から使えないが、念のため表の権限も外して RLS を有効にする
+revoke all on private.invite_code_failures from public, anon, authenticated;
+alter table private.invite_code_failures enable row level security;
 
 -- RLS ----------------------------------------------------------------
 

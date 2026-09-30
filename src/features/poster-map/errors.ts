@@ -2,6 +2,8 @@ const MESSAGES: Record<string, string> = {
   not_authenticated: "参加の手続きができませんでした。もう一度お試しください。",
   invalid_display_name: "ニックネームは1〜20文字で入力してください。",
   invalid_invite_code: "参加コードが正しくありません。",
+  too_many_attempts:
+    "参加コードの入力に続けて失敗したため、受付を一時停止しています。15分ほどたってから、もう一度お試しください。",
   volunteer_revoked: "この端末からの参加は停止されています。運営にお問い合わせください。",
   not_a_volunteer: "報告するには参加の手続きが必要です。",
   note_too_long: "連絡事項は500文字以内で入力してください。",

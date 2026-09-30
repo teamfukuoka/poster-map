@@ -68,6 +68,10 @@ export async function joinAsVolunteer(
     p_display_name: name,
   });
   if (error || !data) return { ok: false, error: toUserMessage(error) };
+  // 参加コードの誤りは、失敗の記録を残すため例外ではなく error で返ってくる
+  if (data.error || !data.display_name) {
+    return { ok: false, error: toUserMessage({ message: data.error }) };
+  }
   return { ok: true, data: { displayName: data.display_name } };
 }
 

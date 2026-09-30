@@ -35,12 +35,15 @@ export async function signInVolunteer(
   displayName: string,
 ): Promise<{ client: TestClient; userId: string }> {
   const signedIn = await signInAnon();
-  const { error } = await signedIn.client.rpc("register_volunteer", {
+  const { data, error } = await signedIn.client.rpc("register_volunteer", {
     p_code: TEST_INVITE_CODE,
     p_display_name: displayName,
   });
   if (error) {
     throw error;
+  }
+  if (data?.error) {
+    throw new Error(data.error);
   }
   return signedIn;
 }
@@ -62,7 +65,7 @@ export async function resetDatabase(): Promise<void> {
   }
   await withPg(async (db) => {
     await db.query(
-      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes cascade",
+      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures cascade",
     );
     await db.query("delete from auth.users");
     await db.query(
@@ -111,4 +114,30 @@ export async function revokeVolunteer(userId: string): Promise<void> {
   await withPg((db) =>
     db.query("update public.volunteers set revoked_at = now() where user_id = $1", [userId]),
   );
+}
+
+/** 参加コードの失敗の記録を、指定した日時で直接足す（上限の窓の外の記録を作るため） */
+export async function insertInviteCodeFailures(
+  userId: string,
+  count: number,
+  ago = "0 minutes",
+): Promise<void> {
+  await withPg((db) =>
+    db.query(
+      "insert into private.invite_code_failures (user_id, created_at) select $1, now() - $2::interval from generate_series(1, $3)",
+      [userId, ago, count],
+    ),
+  );
+}
+
+export async function countInviteCodeFailures(userId?: string): Promise<number> {
+  return withPg(async (db) => {
+    const result = userId
+      ? await db.query<{ n: string }>(
+          "select count(*) as n from private.invite_code_failures where user_id = $1",
+          [userId],
+        )
+      : await db.query<{ n: string }>("select count(*) as n from private.invite_code_failures");
+    return Number(result.rows[0].n);
+  });
 }

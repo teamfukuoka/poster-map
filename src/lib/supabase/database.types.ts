@@ -122,16 +122,10 @@ export type Database = {
       is_public_window: { Args: never; Returns: boolean }
       register_volunteer: {
         Args: { p_code: string; p_display_name: string }
-        Returns: {
-          created_at: string
-          display_name: string
-          invite_code_id: string | null
-          revoked_at: string | null
-          user_id: string
-        }
+        Returns: Database["public"]["CompositeTypes"]["register_volunteer_result"]
         SetofOptions: {
           from: "*"
-          to: "volunteers"
+          to: "register_volunteer_result"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -172,7 +166,10 @@ export type Database = {
         | "other"
     }
     CompositeTypes: {
-      [_ in never]: never
+      register_volunteer_result: {
+        display_name: string | null
+        error: string | null
+      }
     }
   }
 }

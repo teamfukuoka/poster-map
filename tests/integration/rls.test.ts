@@ -1,6 +1,8 @@
 import {
   anonClient,
+  countInviteCodeFailures,
   insertBoard,
+  insertInviteCodeFailures,
   resetDatabase,
   revokeInviteCodes,
   revokeVolunteer,
@@ -8,6 +10,7 @@ import {
   signInAnon,
   signInVolunteer,
   TEST_INVITE_CODE,
+  type TestClient,
   withPg,
 } from "./helpers";
 
@@ -83,63 +86,116 @@ describe("掲示板の閲覧（公開期間）", () => {
 });
 
 describe("register_volunteer", () => {
+  const register = (client: TestClient, code: string, name = "たろう") =>
+    client.rpc("register_volunteer", { p_code: code, p_display_name: name });
+
   test("正しいコードで参加でき、名前の前後の空白は取り除かれる", async () => {
     const { client, userId } = await signInAnon();
-    const { data, error } = await client.rpc("register_volunteer", {
-      p_code: TEST_INVITE_CODE,
-      p_display_name: "  たろう  ",
-    });
+    const { data, error } = await register(client, TEST_INVITE_CODE, "  たろう  ");
     expect(error).toBeNull();
-    expect(data).toMatchObject({ user_id: userId, display_name: "たろう" });
+    expect(data).toEqual({ display_name: "たろう", error: null });
+    const rows = await withPg(
+      async (db) => (await db.query("select user_id, display_name from public.volunteers")).rows,
+    );
+    expect(rows).toEqual([{ user_id: userId, display_name: "たろう" }]);
   });
 
   test.each([
-    ["コード違い", "wrong-code", "たろう", "invalid_invite_code"],
     ["名前が空", TEST_INVITE_CODE, "   ", "invalid_display_name"],
     ["名前が21文字", TEST_INVITE_CODE, "あ".repeat(21), "invalid_display_name"],
   ])("%s は拒否される", async (_label, code, name, message) => {
     const { client } = await signInAnon();
-    const { error } = await client.rpc("register_volunteer", {
-      p_code: code,
-      p_display_name: name,
-    });
+    const { error } = await register(client, code, name);
     expect(error?.message).toBe(message);
+  });
+
+  test("コード違いは例外ではなく error で返り、失敗が記録される", async () => {
+    const { client, userId } = await signInAnon();
+    const { data, error } = await register(client, "wrong-code");
+    expect(error).toBeNull();
+    expect(data).toEqual({ display_name: null, error: "invalid_invite_code" });
+    expect(await countInviteCodeFailures(userId)).toBe(1);
+    const rows = await withPg(
+      async (db) => (await db.query("select 1 from public.volunteers")).rows,
+    );
+    expect(rows).toEqual([]);
   });
 
   test("失効したコードは拒否される", async () => {
     await revokeInviteCodes();
     const { client } = await signInAnon();
-    const { error } = await client.rpc("register_volunteer", {
-      p_code: TEST_INVITE_CODE,
-      p_display_name: "たろう",
-    });
-    expect(error?.message).toBe("invalid_invite_code");
+    const { data } = await register(client, TEST_INVITE_CODE);
+    expect(data?.error).toBe("invalid_invite_code");
+  });
+
+  test("5 回続けて間違えると、次は正しいコードでも too_many_attempts", async () => {
+    const { client, userId } = await signInAnon();
+    for (let i = 0; i < 5; i++) {
+      expect((await register(client, `wrong-${i}`)).data?.error).toBe("invalid_invite_code");
+    }
+    const { data, error } = await register(client, TEST_INVITE_CODE);
+    expect(data).toBeNull();
+    expect(error?.message).toBe("too_many_attempts");
+    // 拒否した試行は数えない（窓が過ぎれば元に戻る）
+    expect(await countInviteCodeFailures(userId)).toBe(5);
+  });
+
+  test("上限に達していなければ（4 回の失敗）、正しいコードで参加でき、失敗の記録は消える", async () => {
+    const { client, userId } = await signInAnon();
+    for (let i = 0; i < 4; i++) {
+      await register(client, `wrong-${i}`);
+    }
+    const { data, error } = await register(client, TEST_INVITE_CODE);
+    expect(error).toBeNull();
+    expect(data).toEqual({ display_name: "たろう", error: null });
+    expect(await countInviteCodeFailures(userId)).toBe(0);
+  });
+
+  test("上限は 1 人ずつ。別のユーザーには影響しない", async () => {
+    const blocked = await signInAnon();
+    await insertInviteCodeFailures(blocked.userId, 5);
+    expect((await register(blocked.client, TEST_INVITE_CODE)).error?.message).toBe(
+      "too_many_attempts",
+    );
+
+    const other = await signInAnon();
+    const { data, error } = await register(other.client, TEST_INVITE_CODE, "はなこ");
+    expect(error).toBeNull();
+    expect(data?.display_name).toBe("はなこ");
+  });
+
+  test("15 分より前の失敗は数えず、次の失敗のときに消す", async () => {
+    const { client, userId } = await signInAnon();
+    await insertInviteCodeFailures(userId, 5, "16 minutes");
+    await insertInviteCodeFailures(userId, 4);
+    expect((await register(client, "wrong")).data?.error).toBe("invalid_invite_code");
+    expect(await countInviteCodeFailures(userId)).toBe(5);
+    expect((await register(client, TEST_INVITE_CODE)).error?.message).toBe("too_many_attempts");
+  });
+
+  test("ユーザーを消すと失敗の記録も消える", async () => {
+    const { client, userId } = await signInAnon();
+    await register(client, "wrong");
+    expect(await countInviteCodeFailures(userId)).toBe(1);
+    await withPg((db) => db.query("delete from auth.users where id = $1", [userId]));
+    expect(await countInviteCodeFailures()).toBe(0);
   });
 
   test("もう一度呼ぶとニックネームが変わる", async () => {
     const { client } = await signInVolunteer("たろう");
-    const { data } = await client.rpc("register_volunteer", {
-      p_code: TEST_INVITE_CODE,
-      p_display_name: "じろう",
-    });
+    const { data } = await register(client, TEST_INVITE_CODE, "じろう");
     expect(data?.display_name).toBe("じろう");
   });
 
   test("参加を停止された人は、再登録で停止を解除できない", async () => {
     const { client, userId } = await signInVolunteer("たろう");
     await revokeVolunteer(userId);
-    const { error } = await client.rpc("register_volunteer", {
-      p_code: TEST_INVITE_CODE,
-      p_display_name: "たろう",
-    });
+    const { error } = await register(client, TEST_INVITE_CODE);
     expect(error?.message).toBe("volunteer_revoked");
   });
 
   test("未ログインでは呼べない", async () => {
-    const { error } = await anonClient().rpc("register_volunteer", {
-      p_code: TEST_INVITE_CODE,
-      p_display_name: "たろう",
-    });
+    const { error } = await register(anonClient(), TEST_INVITE_CODE);
     expect(error).not.toBeNull();
   });
 });
@@ -376,18 +432,33 @@ describe("直接書き込み・private schema へのアクセスは拒否され�
     expect(await count("public.poster_boards")).toBe(1);
   });
 
-  test("private schema の参加コードは API から読めない", async () => {
+  test.each([
+    "invite_codes",
+    "invite_code_failures",
+  ])("private.%s は API から読めない", async (table) => {
     const { client } = await signInVolunteer("たろう");
     // private は生成された型に無いので、schema 名だけ最小限のキャストで渡す
     const volunteer = await client
       .schema("private" as never)
-      .from("invite_codes" as never)
+      .from(table as never)
       .select();
     expect(volunteer.error).not.toBeNull();
     const anon = await anonClient()
       .schema("private" as never)
-      .from("invite_codes" as never)
+      .from(table as never)
       .select();
     expect(anon.error).not.toBeNull();
+  });
+
+  test("private.invite_code_failures は anon / authenticated に権限がなく、RLS も有効", async () => {
+    const result = await withPg((db) =>
+      db.query<{ anon: boolean; authenticated: boolean; rls: boolean }>(
+        `select
+           has_table_privilege('anon', 'private.invite_code_failures', 'select,insert,update,delete') as anon,
+           has_table_privilege('authenticated', 'private.invite_code_failures', 'select,insert,update,delete') as authenticated,
+           (select relrowsecurity from pg_class where oid = 'private.invite_code_failures'::regclass) as rls`,
+      ),
+    );
+    expect(result.rows[0]).toEqual({ anon: false, authenticated: false, rls: true });
   });
 });
