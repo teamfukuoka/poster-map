@@ -1,36 +1,34 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# poster-map
 
-## Getting Started
+福岡市内の公営ポスター掲示場の位置と貼り付け状況を共有する地図です。
 
-First, run the development server:
+- 閲覧: 公開期間中は誰でも見られます（地図・状況・件数のみ）。
+- 報告: 参加コードを受け取ったボランティアが、ニックネームで状況を報告します。
+
+ライセンスは GNU AGPL v3.0 です（`LICENSE`）。改変元と改変内容は `NOTICE.md` にあります。
+
+## 開発
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
+supabase start
+supabase db reset          # migration と seed（ローカル専用の参加コード）を適用
+cp .env.example .env.local # 値は `supabase status` とメモを見て埋める
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| コマンド | 内容 |
+|---|---|
+| `pnpm check` | lint・型チェック・ユニットテスト・名称チェック |
+| `pnpm test:integration` | ローカル Supabase を使う統合テスト（RLS・RPC・取り込み） |
+| `pnpm db:types` | DB の型を生成 |
+| `pnpm import:boards [--dry-run] [--prune] [--include-removed] <csv>...` | 掲示板データの取り込み（`DATABASE_URL` が必要）。`--include-removed` は「削除」の行も含める |
+| `pnpm reconcile:boards --senkan <csv> --out <csv> --report <md> [--base data/sangin-2025]` | 選管一覧との照合 |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 運用
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+公開期間は DB の `private.site_settings` で管理します。緊急時の非表示:
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```sql
+update private.site_settings set force_hidden = true;
+```
