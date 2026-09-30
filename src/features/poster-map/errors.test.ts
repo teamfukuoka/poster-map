@@ -16,3 +16,9 @@ test("知らないエラー・null は共通の文言", () => {
   expect(toUserMessage({ message: "connection refused" })).toBe(FALLBACK_MESSAGE);
   expect(toUserMessage(null)).toBe(FALLBACK_MESSAGE);
 });
+
+test("Object の組み込みのプロパティ名は共通の文言", () => {
+  expect(toUserMessage({ code: "constructor" })).toBe(FALLBACK_MESSAGE);
+  expect(toUserMessage({ message: "toString" })).toBe(FALLBACK_MESSAGE);
+  expect(toUserMessage({ message: "__proto__" })).toBe(FALLBACK_MESSAGE);
+});

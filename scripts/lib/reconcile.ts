@@ -165,7 +165,7 @@ function csvField(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
-/** pnpm import:boards にそのまま渡せる CSV */
+/** pnpm import:boards にそのまま渡せる CSV（Excel で開いても文字化けしないよう BOM を付ける） */
 export function toImportCsv(rows: readonly ReconcileRow[]): string {
   const lines = ["number,address,name,lat,long,note"];
   for (const row of rows) {
@@ -182,7 +182,7 @@ export function toImportCsv(rows: readonly ReconcileRow[]): string {
         .join(","),
     );
   }
-  return `${lines.join("\n")}\n`;
+  return `\uFEFF${lines.join("\n")}\n`;
 }
 
 function sqlString(value: string): string {

@@ -57,6 +57,11 @@ test("掲示板のツールチップは名称と住所をエスケープする",
   expect(html).toBe("#A-1 &lt;b&gt;x&lt;/b&gt;<br>中央区&amp;天神");
 });
 
+test("掲示板のツールチップは番号もエスケープする", () => {
+  const html = boardTooltipHtml({ number: "<b>", name: "n", address: "a" }, 1);
+  expect(html).toBe("#&lt;b&gt; n<br>a");
+});
+
 test("同じ位置に複数あるときはツールチップに件数を添える", () => {
   expect(boardTooltipHtml({ number: "A-1", name: "n", address: "a" }, 3)).toContain(
     "※この位置に3件の掲示板があります",

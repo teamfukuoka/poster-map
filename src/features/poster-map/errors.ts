@@ -16,7 +16,8 @@ export function toUserMessage(
   error: { code?: string | null; message?: string | null } | null | undefined,
 ): string {
   if (!error) return FALLBACK_MESSAGE;
-  if (error.code && MESSAGES[error.code]) return MESSAGES[error.code];
-  if (error.message && MESSAGES[error.message]) return MESSAGES[error.message];
+  // "constructor" などで Object の組み込みのプロパティを返さないよう、自前のキーだけを見る
+  if (error.code && Object.hasOwn(MESSAGES, error.code)) return MESSAGES[error.code];
+  if (error.message && Object.hasOwn(MESSAGES, error.message)) return MESSAGES[error.message];
   return FALLBACK_MESSAGE;
 }

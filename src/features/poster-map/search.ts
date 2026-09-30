@@ -4,9 +4,17 @@ import type { MapBoard } from "./types";
 export const SEARCH_MIN_QUERY_LENGTH = 2;
 export const SEARCH_MAX_RESULTS = 10;
 
-/** 全角英数・記号を半角にし（NFKC）、小文字にし、空白を取り除く */
+/**
+ * 全角英数・記号を半角にし（NFKC）、小文字にし、空白を取り除く。
+ * ハイフン類（‐ ‒ – — ― − など）と、数字に挟まれた長音の「ー」「ｰ」を - に揃える。
+ */
 export function normalizeForSearch(value: string): string {
-  return value.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/[‐‑‒–—―−]/g, "-")
+    .replace(/(\d)ー(?=\d)/g, "$1-");
 }
 
 export function searchBoards<T extends Pick<MapBoard, "number" | "name" | "address" | "ward">>(

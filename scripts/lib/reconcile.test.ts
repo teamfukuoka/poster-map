@@ -131,7 +131,9 @@ test("出力した CSV は取り込みの正規化で読め、要確認は取り
     async () => {},
   );
   const csv = toImportCsv(rows);
-  expect(csv.split("\n")[0]).toBe("number,address,name,lat,long,note");
+  // Excel で開いても文字化けしないよう BOM を付ける。読み込み側は BOM を除いて列名を読む
+  expect(csv.split("\n")[0]).toBe("\uFEFFnumber,address,name,lat,long,note");
+  expect(Object.keys(parseCsv(csv)[0])[0]).toBe("number");
   const result = normalizeBoards(parseCsv(csv));
   expect(result.missingCoordinates).toEqual(["A-2", "C-1"]);
   expect(result.notes.map((n) => n.number)).toEqual(["A-2", "B-9", "C-1"]);
@@ -141,7 +143,7 @@ test("カンマや引用符を含む値をクォートする", () => {
   const csv = toImportCsv([
     { kind: "new", number: "X", address: 'a,"b"', name: "n", lat: 1, long: 2, note: "" },
   ]);
-  expect(csv).toBe('number,address,name,lat,long,note\nX,"a,""b""",n,1,2,\n');
+  expect(csv).toBe('\uFEFFnumber,address,name,lat,long,note\nX,"a,""b""",n,1,2,\n');
 });
 
 test("レポートに件数と要確認・なくなったものを載せる", () => {

@@ -18,6 +18,22 @@ test("全角・半角の違いを吸収して番号で探せる", () => {
   expect(searchBoards(boards, "別府第1-1").map((b) => b.number)).toEqual(["別府第１-1"]);
 });
 
+test.each([
+  "別府第1ー1",
+  "別府第1−1",
+  "別府第1–1",
+  "別府第1ｰ1",
+])("ハイフン類の違いを吸収する（%s）", (query) => {
+  expect(searchBoards(boards, query).map((b) => b.number)).toEqual(["別府第１-1"]);
+});
+
+test("対象側のハイフン類も揃え、長音の「ー」は数字に挟まれたときだけ - とみなす", () => {
+  const items = [{ number: "天神1ー2", name: "センター前", address: "中央区天神", ward: "中央区" }];
+  expect(searchBoards(items, "天神1-2")).toHaveLength(1);
+  expect(searchBoards(items, "センター")).toHaveLength(1);
+  expect(normalizeForSearch("センター1ー2")).toBe("センター1-2");
+});
+
 test("名称・住所・区でも探せる", () => {
   expect(searchBoards(boards, "親和")).toHaveLength(1);
   expect(searchBoards(boards, "四丁目7")).toHaveLength(1);
