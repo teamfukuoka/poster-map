@@ -20,10 +20,13 @@ export default function PrivacyPage() {
 
       <section className="space-y-1">
         <h2 className="font-semibold">参加コードで参加した方</h2>
-        <p>保存するのは、次の 3 つだけです。</p>
+        <p>保存するのは、次の 6 つです。</p>
         <ul className="list-disc pl-5">
           <li>ニックネーム（20 文字まで）</li>
           <li>この端末を識別するための Cookie（ランダムな ID）</li>
+          <li>参加に使った参加コードの種類（配布先ごとの区別）</li>
+          <li>参加した日時</li>
+          <li>参加コードの入力に失敗した日時（続けて失敗した回数を数えるため）</li>
           <li>報告の内容（状況・連絡事項・日時）</li>
         </ul>
         <p>
