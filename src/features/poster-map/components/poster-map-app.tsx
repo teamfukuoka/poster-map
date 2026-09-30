@@ -2,7 +2,7 @@
 // Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10.
 import { CircleHelp } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { loadMyBoardIdsAction, loadVolunteerBoardsAction } from "../actions";
 import { toUserMessage } from "../errors";
@@ -69,6 +69,13 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
   const [selected, setSelected] = useState<MapBoard | null>(null);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  /** ピンから参加に進んだときの掲示板。参加の後に報告を開く */
+  const joinBoardRef = useRef<MapBoard | null>(null);
+  const stateRef = useRef(state);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const isVolunteer = viewer.kind === "volunteer";
   const canJoin = viewer.kind === "public";
@@ -76,9 +83,12 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey は再読み込みの合図
   useEffect(() => {
     let active = true;
-    setState({ kind: "loading" });
+    // 地図を表示しているときは作り直さない。裏で取り直して差し替える
+    if (stateRef.current.kind !== "ok") setState({ kind: "loading" });
     loadBoards(isVolunteer).then((loaded) => {
       if (!active) return;
+      // 裏での取り直しに失敗しても、今の表示を残す
+      if (loaded.state.kind !== "ok" && stateRef.current.kind === "ok") return;
       setState(loaded.state);
       setMyBoardIds(loaded.myBoardIds);
     });
@@ -94,13 +104,22 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
   const closeSelected = useCallback(() => setSelected(null), []);
 
   const openJoin = () => {
+    joinBoardRef.current = selected;
     setSelected(null);
     setIsJoinOpen(true);
   };
 
+  const handleJoinOpenChange = (open: boolean) => {
+    if (!open) joinBoardRef.current = null;
+    setIsJoinOpen(open);
+  };
+
   const handleJoined = (displayName: string) => {
+    const board = joinBoardRef.current;
+    joinBoardRef.current = null;
     setIsJoinOpen(false);
     setViewer({ kind: "volunteer", displayName });
+    if (board) setSelected(board);
   };
 
   const handleUpdated = (updated: MapBoard) => {
@@ -188,7 +207,7 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
       ) : (
         <InfoDialog board={selected} canJoin={canJoin} onJoin={openJoin} onClose={closeSelected} />
       )}
-      <JoinDialog open={isJoinOpen} onOpenChange={setIsJoinOpen} onJoined={handleJoined} />
+      <JoinDialog open={isJoinOpen} onOpenChange={handleJoinOpenChange} onJoined={handleJoined} />
       <HelpDialog open={isHelpOpen} onOpenChange={setIsHelpOpen} isVolunteer={isVolunteer} />
     </div>
   );

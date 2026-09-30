@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import {
+  joinAction,
   loadHistoryAction,
   loadMyBoardIdsAction,
   loadVolunteerBoardsAction,
@@ -135,4 +136,52 @@ test("報告が終わる前に別の掲示板を開いていたら、そのダ�
   resolveUpdate({ ok: true, data: board("1", "done") });
   await waitFor(() => expect(screen.getByTestId("summary-percent")).toHaveTextContent("50"));
   expect(screen.getByText("#2 掲示板2")).toBeInTheDocument();
+});
+
+function fillJoin() {
+  fireEvent.change(screen.getByLabelText("参加コード"), { target: { value: "code-1" } });
+  fireEvent.change(screen.getByLabelText("ニックネーム"), { target: { value: "はなこ" } });
+  fireEvent.click(screen.getByRole("button", { name: "参加する" }));
+}
+
+test("ピンから参加したら、地図を作り直さずにその掲示板の報告を開く", async () => {
+  jest
+    .mocked(fetchPublicBoards)
+    .mockResolvedValue({ kind: "ok", boards: [board("1"), board("2")] });
+  jest.mocked(joinAction).mockResolvedValue({ ok: true, data: { displayName: "はなこ" } });
+  let resolveBoards: (value: Awaited<ReturnType<typeof loadVolunteerBoardsAction>>) => void =
+    () => {};
+  jest.mocked(loadVolunteerBoardsAction).mockReturnValue(
+    new Promise((resolve) => {
+      resolveBoards = resolve;
+    }),
+  );
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  jest.mocked(loadHistoryAction).mockResolvedValue({ ok: true, data: [] });
+  render(<PosterMapApp initialViewer={{ kind: "public" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "pin-1" }));
+  fireEvent.click(await screen.findByRole("button", { name: "参加コードをお持ちの方" }));
+  fillJoin();
+  expect(await screen.findByText("ポスターの状況を報告")).toBeInTheDocument();
+  expect(screen.getByText("#1 掲示板1")).toBeInTheDocument();
+  // 取り直している間も、地図はそのまま
+  expect(screen.getByTestId("map-count")).toHaveTextContent("2");
+  resolveBoards({ ok: true, data: [board("1"), board("2"), board("3")] });
+  await waitFor(() => expect(screen.getByTestId("map-count")).toHaveTextContent("3"));
+});
+
+test("参加をやめた後に上のボタンから参加したら、報告は開かない", async () => {
+  jest.mocked(fetchPublicBoards).mockResolvedValue({ kind: "ok", boards: [board("1")] });
+  jest.mocked(joinAction).mockResolvedValue({ ok: true, data: { displayName: "はなこ" } });
+  jest.mocked(loadVolunteerBoardsAction).mockResolvedValue({ ok: true, data: [board("1")] });
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  render(<PosterMapApp initialViewer={{ kind: "public" }} />);
+  fireEvent.click(await screen.findByRole("button", { name: "pin-1" }));
+  fireEvent.click(await screen.findByRole("button", { name: "参加コードをお持ちの方" }));
+  fireEvent.click(await screen.findByRole("button", { name: "キャンセル" }));
+  fireEvent.click(await screen.findByRole("button", { name: "参加コードをお持ちの方" }));
+  fillJoin();
+  expect(await screen.findByText("はなこ さんとして参加中")).toBeInTheDocument();
+  await waitFor(() => expect(loadVolunteerBoardsAction).toHaveBeenCalled());
+  expect(screen.queryByText("ポスターの状況を報告")).not.toBeInTheDocument();
 });
