@@ -16,6 +16,7 @@ import {
   signInAnon,
   signInVolunteer,
   TEST_INVITE_CODE,
+  withPg,
 } from "./helpers";
 
 beforeEach(async () => {
@@ -69,6 +70,24 @@ describe("joinAsVolunteer", () => {
     const result = await joinAsVolunteer(client, ` ${TEST_INVITE_CODE} `, " じろう ");
     expect(result).toEqual({ ok: true, data: { displayName: "じろう" } });
     expect(await getViewer(client)).toEqual({ kind: "volunteer", displayName: "じろう" });
+  });
+
+  test("auth.users が消えた古いセッションが残っていても、匿名サインインし直して参加できる", async () => {
+    const { client, userId } = await signInAnon();
+    expect(await joinAsVolunteer(client, TEST_INVITE_CODE, "さぶろう")).toEqual({
+      ok: true,
+      data: { displayName: "さぶろう" },
+    });
+    // 運営が匿名ユーザーを掃除した。JWT はまだ有効なので getClaims は古い sub を返す
+    await withPg((db) => db.query("delete from auth.users where id = $1", [userId]));
+
+    const result = await joinAsVolunteer(client, TEST_INVITE_CODE, "さぶろう");
+    expect(result).toEqual({ ok: true, data: { displayName: "さぶろう" } });
+    const rows = await withPg(
+      async (db) => (await db.query("select user_id from public.volunteers")).rows,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].user_id).not.toBe(userId);
   });
 
   test("参加コードが違えば利用者向けの文言を返す", async () => {

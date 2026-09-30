@@ -20,6 +20,19 @@ async function currentUserId(client: Client): Promise<string | null> {
   return data?.claims.sub ?? null;
 }
 
+/**
+ * 参加用。getClaims は JWT をローカルで検証するだけなので、運営がユーザーを消した後も
+ * 古い Cookie の sub を返してしまう。getUser でサーバーに問い合わせ、実在しなければ
+ * 古いセッションを捨てる（参加はまれな操作なので、問い合わせが 1 回増えてもよい）。
+ */
+async function hasLiveUser(client: Client): Promise<boolean> {
+  if (!(await currentUserId(client))) return false;
+  const { data, error } = await client.auth.getUser();
+  if (!error && data.user) return true;
+  await client.auth.signOut({ scope: "local" });
+  return false;
+}
+
 export async function getViewer(client: Client): Promise<Viewer> {
   const userId = await currentUserId(client);
   if (!userId) return { kind: "public" };
@@ -46,7 +59,7 @@ export async function joinAsVolunteer(
   if (!code.trim()) {
     return { ok: false, error: toUserMessage({ message: "invalid_invite_code" }) };
   }
-  if (!(await currentUserId(client))) {
+  if (!(await hasLiveUser(client))) {
     const { error } = await client.auth.signInAnonymously();
     if (error) return { ok: false, error: toUserMessage(error) };
   }
