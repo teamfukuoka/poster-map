@@ -50,3 +50,8 @@ test("参加が reject されても、確認中のままにせず汎用の文言
   expect(screen.getByRole("button", { name: "参加する" })).toBeEnabled();
   expect(onJoined).not.toHaveBeenCalled();
 });
+
+test("右上の閉じるボタンに日本語の名前がある", () => {
+  render(<JoinDialog open onOpenChange={jest.fn()} onJoined={jest.fn()} />);
+  expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
+});
