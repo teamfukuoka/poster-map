@@ -4,6 +4,7 @@ This software is a modified version of **action-board**.
 
 - Upstream: https://github.com/team-mirai-volunteer/action-board
 - Upstream commit: 1b269081aaee4a145a125af46d5c90b88d9e5a4e (2026-08-22)
+- Upstream copyright: Copyright (C) 2025 Team Mirai and action-board contributors
 - License: GNU Affero General Public License v3.0 (see `LICENSE`)
 
 ## Modifications (2026-10)
