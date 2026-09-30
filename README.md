@@ -20,9 +20,9 @@ pnpm dev
 | コマンド | 内容 |
 |---|---|
 | `pnpm check` | lint・型チェック・ユニットテスト・名称チェック |
-| `pnpm test:integration` | ローカル Supabase を使う統合テスト（RLS・RPC・取り込み） |
+| `pnpm test:integration` | ローカル Supabase を使う統合テスト（RLS・RPC・取り込み）。実行のたびにローカル DB の掲示板・参加者・参加コードを消して入れ直し、公開期間の設定も書き換える（seed の状態に戻すには `supabase db reset`） |
 | `pnpm db:types` | DB の型を生成 |
-| `pnpm import:boards [--dry-run] [--prune] [--include-removed] <csv>...` | 掲示板データの取り込み（`DATABASE_URL` が必要）。`--include-removed` は「削除」の行も含める |
+| `pnpm import:boards [--dry-run] [--prune [--confirm-prune=<件数>]] [--include-removed] <csv>...` | 掲示板データの取り込み（`DATABASE_URL` が必要）。`--prune` は CSV にない掲示板を DB から消す（予約・報告の履歴も消える）。消える掲示板があるときは `--confirm-prune=<件数>` が要る（まず付けずに実行すると、DB を変えずに消える番号と件数を表示する）。`--include-removed` は「削除」の行も含める |
 | `pnpm reconcile:boards --senkan <csv> --out <csv> --report <md> [--base data/sangin-2025]` | 選管一覧との照合 |
 
 ## 運用
