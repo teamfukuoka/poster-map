@@ -64,9 +64,46 @@ test("場所の変更・新規だけをジオコーディングし、見つか�
   expect(asked).toEqual(["中央区大名1丁目", "中央区赤坂1丁目"]);
   expect(rows[1]).toMatchObject({
     lat: 33.589,
-    note: "要確認:ジオコーディング(福岡県福岡市中央区大名一丁目)",
+    note: "要確認:ジオコーディング(福岡県福岡市中央区大名一丁目) 旧住所:中央区天神2丁目 旧座標から774m",
   });
   expect(rows[3]).toMatchObject({ lat: null, long: null, note: "要確認:座標なし" });
+});
+
+test("場所が変わった掲示板は、ジオコーディングできなくても旧住所を note に残す", async () => {
+  const rows = await geocodePending(
+    reconcile(senkan, base).rows,
+    async () => null,
+    async () => {},
+  );
+  expect(rows[1].note).toBe("要確認:座標なし 旧住所:中央区天神2丁目");
+  expect(rows[3].note).toBe("要確認:座標なし");
+});
+
+test("住所の書き方の違い（漢数字・丁目・番・号・ハイフン）は同じ場所として扱う", () => {
+  const result = reconcile(
+    [
+      { number: "A-1", address: "中央区天神1-8-1", name: "a" },
+      { number: "B-9", address: "中央区天神2丁目3ー4", name: "b" },
+    ],
+    [
+      { ...base[0], address: "中央区天神一丁目8番1号" },
+      { ...base[1], number: "A-9", address: "中央区天神二丁目3番4号" },
+    ],
+  );
+  expect(result.rows.map((r) => r.kind)).toEqual(["unchanged", "renumbered"]);
+});
+
+test("レポートの「場所が変わった掲示板」に旧住所と旧座標からの距離を出す", async () => {
+  const rows = await geocodePending(
+    reconcile(senkan, base).rows,
+    async () => ({ lat: 33.589, long: 130.393, title: "福岡県福岡市中央区大名一丁目" }),
+    async () => {},
+  );
+  const report = toReport({ rows, dropped: [] });
+  expect(report).toContain("## 場所が変わった掲示板（1 件）");
+  expect(report).toContain("- A-2 中央区大名1丁目（b）: 旧住所 中央区天神2丁目 / 旧座標から 774m");
+  const notFound = toReport(reconcile(senkan, base));
+  expect(notFound).toContain("- A-2 中央区大名1丁目（b）: 旧住所 中央区天神2丁目 / 座標なし");
 });
 
 test("出力した CSV は取り込みの正規化で読め、要確認は取り込みを止める", async () => {

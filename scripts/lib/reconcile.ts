@@ -1,3 +1,4 @@
+import { normalizeAddress } from "./address";
 import type { GeocodeHit } from "./geocode-gsi";
 import type { NormalizedBoard } from "./normalize-boards";
 import type { CsvRow } from "./read-csv";
@@ -47,8 +48,21 @@ export function toSenkanRows(rows: readonly CsvRow[]): SenkanRow[] {
 }
 
 function sameAddress(a: string, b: string): boolean {
-  const normalize = (value: string) => value.normalize("NFKC").replace(/\s+/g, "");
-  return normalize(a) === normalize(b);
+  return normalizeAddress(a) === normalizeAddress(b);
+}
+
+/** 2 点間の距離（メートル、整数）。数百 m の確認用なので球面で近似する */
+export function distanceMeters(
+  a: { lat: number; long: number },
+  b: { lat: number; long: number },
+): number {
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLong = rad(b.long - a.long);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLong / 2) ** 2;
+  return Math.round(2 * 6371000 * Math.asin(Math.sqrt(h)));
 }
 
 /** 2026 年の選管一覧（正本）と 2025 年版を照合する。座標は住所が一致するときだけ引き継ぐ */
@@ -125,10 +139,20 @@ export async function geocodePending(
     }
     const hit = await geocode(row.address);
     await wait();
+    // 場所が変わったものは、旧住所と旧座標からの距離を添えて確かめやすくする
+    const previous =
+      row.kind === "moved" && row.previous
+        ? ` 旧住所:${row.previous.address}${hit ? ` 旧座標から${distanceMeters(row.previous, hit)}m` : ""}`
+        : "";
     result.push(
       hit
-        ? { ...row, lat: hit.lat, long: hit.long, note: `要確認:ジオコーディング(${hit.title})` }
-        : { ...row, lat: null, long: null, note: "要確認:座標なし" },
+        ? {
+            ...row,
+            lat: hit.lat,
+            long: hit.long,
+            note: `要確認:ジオコーディング(${hit.title})${previous}`,
+          }
+        : { ...row, lat: null, long: null, note: `要確認:座標なし${previous}` },
     );
   }
   return result;
@@ -169,6 +193,17 @@ export function toReport(result: ReconcileResult): string {
     (row): row is ReconcileRow & { previous: NormalizedBoard } =>
       row.kind === "renumbered" && row.previous !== undefined,
   );
+  const moved = result.rows.filter(
+    (row): row is ReconcileRow & { previous: NormalizedBoard } =>
+      row.kind === "moved" && row.previous !== undefined,
+  );
+  const movedLine = (row: ReconcileRow & { previous: NormalizedBoard }) => {
+    const distance =
+      row.lat !== null && row.long !== null
+        ? `旧座標から ${distanceMeters(row.previous, { lat: row.lat, long: row.long })}m`
+        : "座標なし";
+    return `- ${row.number} ${row.address}（${row.name}）: 旧住所 ${row.previous.address} / ${distance}`;
+  };
   const renumberSql =
     renumbered.length === 0
       ? []
@@ -199,6 +234,12 @@ export function toReport(result: ReconcileResult): string {
     "地図で位置を確かめ、座標を直したら note を空にする。「座標なし」は lat,long を埋めるまで取り込めない。",
     "",
     ...review.map((row) => `- ${row.number} ${row.address}（${row.name}）: ${row.note}`),
+    "",
+    `## 場所が変わった掲示板（${moved.length} 件）`,
+    "",
+    "旧座標からの距離は、ジオコーディングの結果（人が直したらその座標）との距離。",
+    "",
+    ...moved.map(movedLine),
     "",
     `## 番号だけ変わった掲示板（${renumbered.length} 件）`,
     "",
