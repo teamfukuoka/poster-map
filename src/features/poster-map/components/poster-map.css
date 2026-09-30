@@ -1,0 +1,40 @@
+/* Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10. */
+/* Leaflet がダイアログ（Radix）より手前に出ないようにする */
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+.leaflet-pane {
+  z-index: 1 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 10 !important;
+}
+
+.custom-marker,
+.custom-cluster {
+  z-index: 1 !important;
+}
+
+[data-radix-popper-content-wrapper],
+[role="dialog"] {
+  z-index: 50 !important;
+}
+
+.cluster-tooltip {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  max-width: 200px !important;
+}
+
+.cluster-tooltip::before {
+  border-top-color: rgba(0, 0, 0, 0.8) !important;
+}
