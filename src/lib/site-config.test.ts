@@ -38,6 +38,23 @@ describe("readSiteConfig", () => {
     expect(() => readSiteConfig({ ...base, CONTACT: "090-0000-0000" })).toThrow("CONTACT");
   });
 
+  test("OPERATOR_PRIVACY_URL は任意で、あれば返す", () => {
+    expect(readSiteConfig(base).operatorPrivacyUrl).toBeUndefined();
+    expect(
+      readSiteConfig({ ...base, OPERATOR_PRIVACY_URL: " " }).operatorPrivacyUrl,
+    ).toBeUndefined();
+    expect(
+      readSiteConfig({ ...base, OPERATOR_PRIVACY_URL: "https://example.jp/privacypolicy/" })
+        .operatorPrivacyUrl,
+    ).toBe("https://example.jp/privacypolicy/");
+  });
+
+  test("OPERATOR_PRIVACY_URL が https でなければ throw する", () => {
+    expect(() =>
+      readSiteConfig({ ...base, OPERATOR_PRIVACY_URL: "http://example.jp/privacypolicy/" }),
+    ).toThrow("OPERATOR_PRIVACY_URL");
+  });
+
   test("SOURCE_URL が https でなければ throw する", () => {
     expect(() => readSiteConfig({ ...base, SOURCE_URL: "http://example.jp" })).toThrow(
       "SOURCE_URL",

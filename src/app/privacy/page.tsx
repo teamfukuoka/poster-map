@@ -48,6 +48,25 @@ export default function PrivacyPage() {
         </p>
       </section>
 
+      {config.operatorPrivacyUrl && (
+        <section className="space-y-1">
+          <h2 className="font-semibold">運営者のプライバシーポリシー</h2>
+          <p>
+            このページは、この地図で扱う情報についての説明です。
+            {config.operatorName}の
+            <a
+              href={config.operatorPrivacyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              プライバシーポリシー
+            </a>
+            もあわせてご覧ください。
+          </p>
+        </section>
+      )}
+
       <section className="space-y-1">
         <h2 className="font-semibold">お問い合わせ</h2>
         <p>
