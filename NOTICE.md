@@ -52,3 +52,8 @@ All other files were written for this repository and are also licensed under AGP
 `poster_data/data/sangin-2025/福岡県/福岡市_normalized*.csv`
 (poster board list for Fukuoka City, originally published by the Fukuoka City Election Administration Commission).
 Normalization is applied at import time by `scripts/lib/normalize-boards.ts`.
+
+`data/2026/boards.csv` is built by `scripts/reconcile-boards.ts` from the 2026 poster board list
+published by the Fukuoka City Election Administration Commission (ポスター掲示場設置場所一覧, received 2026-10).
+Coordinates are carried over from `data/sangin-2025/*.csv` where the address matches; the rest are geocoded
+with the GSI address search API (国土地理院).

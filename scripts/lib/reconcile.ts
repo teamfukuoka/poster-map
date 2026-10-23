@@ -47,8 +47,19 @@ export function toSenkanRows(rows: readonly CsvRow[]): SenkanRow[] {
   });
 }
 
+/** 2025 年版の文字起こしにある誤字。正しい地名に直してから比べる */
+const MISSPELLINGS: readonly (readonly [string, string])[] = [
+  ["日佐", "曰佐"],
+  ["千隈", "干隈"],
+  ["七隅", "七隈"],
+];
+
+function fixMisspellings(value: string): string {
+  return MISSPELLINGS.reduce((fixed, [wrong, right]) => fixed.replaceAll(wrong, right), value);
+}
+
 function sameAddress(a: string, b: string): boolean {
-  return normalizeAddress(a) === normalizeAddress(b);
+  return normalizeAddress(fixMisspellings(a)) === normalizeAddress(fixMisspellings(b));
 }
 
 /** 2 点間の距離（メートル、整数）。数百 m の確認用なので球面で近似する */
@@ -65,7 +76,15 @@ export function distanceMeters(
   return Math.round(2 * 6371000 * Math.asin(Math.sqrt(h)));
 }
 
-/** 2026 年の選管一覧（正本）と 2025 年版を照合する。座標は住所が一致するときだけ引き継ぐ */
+/** 名称の比較用。全角・半角と空白の違い、2025 年版の誤字を無視する */
+function nameKey(name: string): string {
+  return fixMisspellings(name.normalize("NFKC").replace(/\s+/g, ""));
+}
+
+/**
+ * 2026 年の選管一覧（正本）と 2025 年版を照合する。座標は住所が一致するときだけ引き継ぐ。
+ * 同じ住所に掲示板が複数ある（学校の正門と東門など）ので、番号・住所・名称の一致が強いものから順に対応づける。
+ */
 export function reconcile(
   senkan: readonly SenkanRow[],
   base: readonly NormalizedBoard[],
@@ -73,56 +92,103 @@ export function reconcile(
   const baseByNumber = new Map(base.map((board) => [board.number, board]));
   const senkanNumbers = new Set(senkan.map((row) => row.number));
   const used = new Set<string>();
-  const rows: ReconcileRow[] = [];
+  const matched = new Map<number, ReconcileRow>();
+  const claim = (index: number, board: NormalizedBoard, row: ReconcileRow) => {
+    used.add(board.number);
+    matched.set(index, row);
+  };
+  const pending = () =>
+    senkan.flatMap((row, index) => (matched.has(index) ? [] : [{ row, index }]));
+  const unchanged = (row: SenkanRow, board: NormalizedBoard): ReconcileRow => ({
+    kind: "unchanged",
+    ...row,
+    lat: board.lat,
+    long: board.long,
+    note: "",
+  });
 
-  for (const row of senkan) {
-    const sameNumber = baseByNumber.get(row.number);
-    if (sameNumber) {
-      used.add(sameNumber.number);
-      if (sameAddress(sameNumber.address, row.address)) {
-        rows.push({
-          kind: "unchanged",
-          ...row,
-          lat: sameNumber.lat,
-          long: sameNumber.long,
-          note: "",
-        });
-      } else {
-        rows.push({
-          kind: "moved",
-          ...row,
-          lat: null,
-          long: null,
-          note: "",
-          previous: sameNumber,
-        });
-      }
-      continue;
+  // 1. 番号・住所・名称がすべて同じ
+  for (const { row, index } of pending()) {
+    const board = baseByNumber.get(row.number);
+    if (
+      board &&
+      !used.has(board.number) &&
+      sameAddress(board.address, row.address) &&
+      nameKey(board.name) === nameKey(row.name)
+    ) {
+      claim(index, board, unchanged(row, board));
     }
-
-    const renumbered = base.find(
-      (board) =>
-        !senkanNumbers.has(board.number) &&
-        !used.has(board.number) &&
-        sameAddress(board.address, row.address),
-    );
-    if (renumbered) {
-      used.add(renumbered.number);
-      rows.push({
-        kind: "renumbered",
-        ...row,
-        lat: renumbered.lat,
-        long: renumbered.long,
-        note: `要確認:番号変更(旧:${renumbered.number})`,
-        previous: renumbered,
-      });
-      continue;
-    }
-
-    rows.push({ kind: "new", ...row, lat: null, long: null, note: "" });
   }
 
-  return { rows, dropped: base.filter((board) => !used.has(board.number)) };
+  // 2. 住所・名称が同じで番号だけ違う（番号の入れ替わりもある）。座標はそのまま使える
+  for (const { row, index } of pending()) {
+    const board = base.find(
+      (candidate) =>
+        !used.has(candidate.number) &&
+        sameAddress(candidate.address, row.address) &&
+        nameKey(candidate.name) === nameKey(row.name),
+    );
+    if (board) {
+      claim(index, board, {
+        kind: "renumbered",
+        ...row,
+        lat: board.lat,
+        long: board.long,
+        note: `番号変更(旧:${board.number})`,
+        previous: board,
+      });
+    }
+  }
+
+  // 3. 番号・住所が同じで名称だけ書き換わった
+  for (const { row, index } of pending()) {
+    const board = baseByNumber.get(row.number);
+    if (board && !used.has(board.number) && sameAddress(board.address, row.address)) {
+      claim(index, board, unchanged(row, board));
+    }
+  }
+
+  // 4. 住所だけ同じで番号も名称も違う。同じ住所の別の掲示板かもしれないので要確認にする
+  for (const { row, index } of pending()) {
+    const board = base.find(
+      (candidate) =>
+        !senkanNumbers.has(candidate.number) &&
+        !used.has(candidate.number) &&
+        sameAddress(candidate.address, row.address),
+    );
+    if (board) {
+      claim(index, board, {
+        kind: "renumbered",
+        ...row,
+        lat: board.lat,
+        long: board.long,
+        note: `要確認:番号変更(旧:${board.number} ${board.name})`,
+        previous: board,
+      });
+    }
+  }
+
+  // 5. 番号だけ同じなら場所が変わった掲示板、どれにも当たらなければ新規
+  for (const { row, index } of pending()) {
+    const board = baseByNumber.get(row.number);
+    if (board && !used.has(board.number)) {
+      claim(index, board, {
+        kind: "moved",
+        ...row,
+        lat: null,
+        long: null,
+        note: "",
+        previous: board,
+      });
+    } else {
+      matched.set(index, { kind: "new", ...row, lat: null, long: null, note: "" });
+    }
+  }
+
+  return {
+    rows: senkan.map((_, index) => matched.get(index) as ReconcileRow),
+    dropped: base.filter((board) => !used.has(board.number)),
+  };
 }
 
 /**
@@ -185,6 +251,9 @@ export function toImportCsv(rows: readonly ReconcileRow[]): string {
   return `\uFEFF${lines.join("\n")}\n`;
 }
 
+const RENUMBER_PREFIX = "__renumber__";
+const DROPPED_PREFIX = "__dropped__";
+
 function sqlString(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
@@ -207,16 +276,26 @@ export function toReport(result: ReconcileResult): string {
         : "座標なし";
     return `- ${row.number} ${row.address}（${row.name}）: 旧住所 ${row.previous.address} / ${distance}`;
   };
+  const renumberedNumbers = new Set(renumbered.map((row) => row.number));
+  const evicted = result.dropped.filter((board) => renumberedNumbers.has(board.number));
   const renumberSql =
     renumbered.length === 0
       ? []
       : [
           "```sql",
           "begin;",
+          // 番号の入れ替わりで一意制約にぶつからないよう、いったん仮の番号にしてから戻す
           ...renumbered.map(
             (row) =>
-              `update public.poster_boards set number = ${sqlString(row.number)} where number = ${sqlString(row.previous.number)};`,
+              `update public.poster_boards set number = ${sqlString(RENUMBER_PREFIX)} || ${sqlString(row.number)} where number = ${sqlString(row.previous.number)};`,
           ),
+          // 2026 年版にない掲示板が新しい番号を使っていたら、--prune で消えるよう別の番号に退けておく
+          ...(evicted.length === 0
+            ? []
+            : [
+                `update public.poster_boards set number = ${sqlString(DROPPED_PREFIX)} || number where number in (${evicted.map((board) => sqlString(board.number)).join(", ")});`,
+              ]),
+          `update public.poster_boards set number = substr(number, ${RENUMBER_PREFIX.length + 1}) where starts_with(number, ${sqlString(RENUMBER_PREFIX)});`,
           "commit;",
           "```",
           "",
@@ -254,6 +333,11 @@ export function toReport(result: ReconcileResult): string {
     `## 2026 年版にない（${result.dropped.length} 件）`,
     "",
     "取り込み時に --prune を付けると DB から消える（予約・報告の履歴も消える）。",
+    ...(evicted.length === 0
+      ? []
+      : [
+          `このうち新しい番号と重なる ${evicted.length} 件は、上の SQL で番号の頭に ${DROPPED_PREFIX} を付けて退ける。`,
+        ]),
     ...(renumbered.length === 0
       ? []
       : [

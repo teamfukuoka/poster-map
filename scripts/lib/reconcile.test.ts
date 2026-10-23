@@ -43,7 +43,7 @@ test("変更なし・番号だけ変更・場所の変更・新規・なくな�
   expect(result.rows.map((r) => [r.kind, r.number, r.lat, r.note])).toEqual([
     ["unchanged", "A-1", 33.59, ""],
     ["moved", "A-2", null, ""],
-    ["renumbered", "B-9", 33.592, "要確認:番号変更(旧:A-3)"],
+    ["renumbered", "B-9", 33.592, "番号変更(旧:A-3)"],
     ["new", "C-1", null, ""],
   ]);
   expect(result.dropped.map((b) => b.number)).toEqual(["A-4"]);
@@ -77,6 +77,68 @@ test("場所が変わった掲示板は、ジオコーディングできなく�
   );
   expect(rows[1].note).toBe("要確認:座標なし 旧住所:中央区天神2丁目");
   expect(rows[3].note).toBe("要確認:座標なし");
+});
+
+test("同じ住所に掲示板が複数あるときは、名称も一致する掲示板の座標を使う", () => {
+  const school = "中央区春吉1丁目17番38号";
+  const result = reconcile(
+    [
+      { number: "A-1", address: school, name: "東門横" },
+      { number: "A-2", address: school, name: "正門横" },
+    ],
+    [
+      { ...base[0], number: "A-1", address: school, name: "正門横", lat: 33.1, long: 130.1 },
+      { ...base[1], number: "A-2", address: school, name: "東門横", lat: 33.2, long: 130.2 },
+    ],
+  );
+  expect(result.rows.map((r) => [r.kind, r.number, r.lat, r.note])).toEqual([
+    ["renumbered", "A-1", 33.2, "番号変更(旧:A-2)"],
+    ["renumbered", "A-2", 33.1, "番号変更(旧:A-1)"],
+  ]);
+  expect(result.dropped).toEqual([]);
+});
+
+test("名称は全角・半角と空白の違いを無視して比べる", () => {
+  const result = reconcile(
+    [{ number: "B-1", address: "中央区天神1丁目", name: "九大東門横（あかり薬局前）" }],
+    [{ ...base[0], name: "九大東門横 (あかり薬局前)" }],
+  );
+  expect(result.rows[0]).toMatchObject({ kind: "renumbered", note: "番号変更(旧:A-1)" });
+});
+
+test("2025 年版の誤字（日佐・千隈・七隅）は正しい地名と同じものとして扱う", () => {
+  const result = reconcile(
+    [
+      { number: "曰佐-1", address: "南区曰佐二丁目1番", name: "曰佐中公園入口" },
+      { number: "七隈-7", address: "城南区干隈二丁目13番", name: "七隈公園西側" },
+    ],
+    [
+      { ...base[0], number: "日佐-29-1", address: "南区日佐二丁目1番", name: "日佐中公園入口" },
+      { ...base[1], number: "七隅7", address: "城南区千隈二丁目13番", name: "七隅公園西側" },
+    ],
+  );
+  expect(result.rows.map((r) => r.note)).toEqual(["番号変更(旧:日佐-29-1)", "番号変更(旧:七隅7)"]);
+  expect(result.dropped).toEqual([]);
+});
+
+test("住所だけ一致して名称が違う掲示板は、番号変更として要確認にする", () => {
+  const result = reconcile(
+    [{ number: "B-1", address: "中央区天神1丁目", name: "公園北側" }],
+    [{ ...base[0], name: "公園南側" }],
+  );
+  expect(result.rows[0]).toMatchObject({
+    kind: "renumbered",
+    lat: 33.59,
+    note: "要確認:番号変更(旧:A-1 公園南側)",
+  });
+});
+
+test("番号が同じで住所も同じなら、名称の書き換えは変更なしとして扱う", () => {
+  const result = reconcile(
+    [{ number: "A-1", address: "中央区天神1丁目", name: "a（新しい呼び方）" }],
+    base,
+  );
+  expect(result.rows[0]).toMatchObject({ kind: "unchanged", lat: 33.59, note: "" });
 });
 
 test("住所の書き方の違い（漢数字・丁目・番・号・ハイフン）は同じ場所として扱う", () => {
@@ -150,7 +212,7 @@ test("レポートに件数と要確認・なくなったものを載せる", ()
   const report = toReport(reconcile(senkan, base));
   expect(report).toContain("| 変更なし | 1 |");
   expect(report).toContain("| 2026 年版にない | 1 |");
-  expect(report).toContain("- B-9 中央区天神3丁目（c）: 要確認:番号変更(旧:A-3)");
+  expect(report).toContain("## 要確認（0 件）");
   expect(report).toContain("- A-4 中央区天神4丁目（d）");
 });
 
@@ -159,7 +221,12 @@ test("番号だけ変わった掲示板は、旧番号を引き継ぐ SQL をレ
   expect(result.rows[2].previous?.number).toBe("A-3");
   const report = toReport(result);
   expect(report).toContain("## 番号だけ変わった掲示板（1 件）");
-  expect(report).toContain("update public.poster_boards set number = 'B-9' where number = 'A-3';");
+  expect(report).toContain(
+    "update public.poster_boards set number = '__renumber__' || 'B-9' where number = 'A-3';",
+  );
+  expect(report).toContain(
+    "update public.poster_boards set number = substr(number, 13) where starts_with(number, '__renumber__');",
+  );
   // SQL を実行しなかったときに旧番号も --prune で消えることを説明する
   expect(report).toMatch(/SQL を実行しなかった場合は.*A-3/);
 });
@@ -170,8 +237,23 @@ test("引き継ぎの SQL は値を SQL の文字列としてエスケープす�
     [{ ...base[0], number: "O'Brien-1" }],
   );
   expect(toReport(result)).toContain(
-    "update public.poster_boards set number = 'O''Brien-2' where number = 'O''Brien-1';",
+    "update public.poster_boards set number = '__renumber__' || 'O''Brien-2' where number = 'O''Brien-1';",
   );
+});
+
+test("新しい番号が 2026 年版にない掲示板の番号と同じなら、先にそちらを退ける SQL を出す", () => {
+  const result = reconcile(
+    [{ number: "A-2", address: "中央区天神3丁目", name: "c" }],
+    [base[1], base[2]],
+  );
+  expect(result.dropped.map((board) => board.number)).toEqual(["A-2"]);
+  const report = toReport(result);
+  const evict = report.indexOf(
+    "update public.poster_boards set number = '__dropped__' || number where number in ('A-2');",
+  );
+  const restore = report.indexOf("set number = substr(number, 13)");
+  expect(evict).toBeGreaterThan(0);
+  expect(evict).toBeLessThan(restore);
 });
 
 test("番号だけ変わった掲示板がなければ SQL を出さない", () => {
