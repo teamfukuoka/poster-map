@@ -21,15 +21,15 @@ export type StatusConfig = {
 };
 
 export const STATUS_CONFIG: Record<BoardStatus, StatusConfig> = {
-  not_yet: { label: "未貼付", shortLabel: "未貼付", color: "#6B7280", group: "status" },
+  not_yet: { label: "未貼付", shortLabel: "未貼付", color: "#757575", group: "status" },
   not_yet_dangerous: {
     label: "未貼付（貼り付けに危険が伴う）",
     shortLabel: "未貼付（危険）",
-    color: "#6B7280",
+    color: "#757575",
     group: "status",
   },
   reserved: { label: "予約", shortLabel: "予約", color: "#F59E0B", group: "status" },
-  done: { label: "完了", shortLabel: "完了", color: "#10B981", group: "status" },
+  done: { label: "完了", shortLabel: "完了", color: "#00AFCC", group: "status" },
   error_wrong_poster: {
     label: "エラー（他候補のポスターが貼られている）",
     shortLabel: "他候補",

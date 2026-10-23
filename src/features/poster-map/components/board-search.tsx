@@ -41,7 +41,7 @@ export function BoardSearch({ boards, onSelect }: Props) {
       className="absolute top-2 left-12 z-[1000] w-[calc(100%-8rem)] sm:top-4 sm:left-1/2 sm:w-72 sm:-translate-x-1/2"
     >
       <div className="relative">
-        <Search className="absolute top-2.5 left-2 h-4 w-4 text-gray-400" />
+        <Search className="absolute top-2.5 left-2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
           value={query}
@@ -51,7 +51,7 @@ export function BoardSearch({ boards, onSelect }: Props) {
           }}
           onFocus={() => setIsOpen(true)}
           placeholder="番号・名称・住所で検索"
-          className="bg-white pr-8 pl-8 shadow-lg"
+          className="rounded-full bg-background pr-8 pl-8 shadow-card"
           aria-label="掲示板を検索"
         />
         {query.length > 0 && (
@@ -61,7 +61,7 @@ export function BoardSearch({ boards, onSelect }: Props) {
               setQuery("");
               setIsOpen(false);
             }}
-            className="absolute top-2.5 right-2 text-gray-400 hover:text-gray-600"
+            className="absolute top-2.5 right-2 text-muted-foreground hover:text-ink"
             aria-label="検索をクリア"
           >
             <X className="h-4 w-4" />
@@ -70,9 +70,9 @@ export function BoardSearch({ boards, onSelect }: Props) {
       </div>
 
       {showDropdown && (
-        <ul className="mt-1 max-h-72 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+        <ul className="mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-background shadow-card">
           {results.length === 0 ? (
-            <li className="px-3 py-2 text-gray-500 text-xs">該当する掲示板がありません</li>
+            <li className="px-3 py-2 text-muted-foreground text-xs">該当する掲示板がありません</li>
           ) : (
             results.map((board) => (
               <li key={board.id}>
@@ -82,12 +82,12 @@ export function BoardSearch({ boards, onSelect }: Props) {
                     onSelect(board);
                     setIsOpen(false);
                   }}
-                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-gray-100"
+                  className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-brand-light"
                 >
-                  <span className="font-medium text-gray-900 text-xs">
+                  <span className="font-medium text-ink text-xs">
                     #{board.number} {board.name}
                   </span>
-                  <span className="text-gray-500 text-xs">{board.address}</span>
+                  <span className="text-muted-foreground text-xs">{board.address}</span>
                 </button>
               </li>
             ))

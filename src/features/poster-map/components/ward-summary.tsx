@@ -8,8 +8,8 @@ export function WardSummary({
 }) {
   const rows = summarizeByWard(boards);
   return (
-    <div className="overflow-x-auto rounded-lg border bg-card p-3">
-      <h2 className="mb-2 font-semibold text-sm">区ごとの状況</h2>
+    <div className="overflow-x-auto rounded-lg bg-card p-3 shadow-card">
+      <h2 className="mb-2 font-bold text-brand-dark text-sm">区ごとの状況</h2>
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-muted-foreground text-xs">

@@ -1,3 +1,4 @@
+import { MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
@@ -16,9 +17,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body className="min-h-dvh bg-background text-foreground">
-        <header className="border-b px-4 py-3">
-          <div className="mx-auto max-w-5xl">
-            <a href="/" className="font-bold text-lg">
+        <header className="border-b bg-background">
+          <div aria-hidden className="h-1 bg-gradient-to-r from-brand-deep to-brand" />
+          <div className="mx-auto max-w-5xl px-4 py-3">
+            <a href="/" className="inline-flex items-center gap-2 font-bold text-ink text-lg">
+              <MapPin aria-hidden className="h-5 w-5 text-brand" strokeWidth={2.5} />
               {config.siteName}
             </a>
           </div>

@@ -157,8 +157,8 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
         locationRef.current?.remove();
         locationRef.current = L.circleMarker(latLng, {
           radius: 12,
-          color: "#2563eb",
-          fillColor: "#60a5fa",
+          color: "#0081cc",
+          fillColor: "#00afcc",
           fillOpacity: 0.7,
           weight: 3,
         })
@@ -207,7 +207,9 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
   return (
     <div
       className={
-        isFullscreen ? "fixed inset-0 z-50 bg-white" : "relative z-0 h-[65vh] min-h-[420px] w-full"
+        isFullscreen
+          ? "fixed inset-0 z-50 bg-background"
+          : "relative z-0 h-[65vh] min-h-[420px] w-full"
       }
       style={isFullscreen ? { height: "100dvh", width: "100dvw" } : undefined}
     >
@@ -219,7 +221,7 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
       <button
         type="button"
         onClick={() => setIsFullscreen((v) => !v)}
-        className="absolute left-4 z-[1000] rounded-full border border-gray-200 bg-white p-3 text-gray-700 shadow-sm hover:bg-gray-50"
+        className="absolute left-4 z-[1000] rounded-full border border-border bg-background p-3 text-ink shadow-card hover:bg-brand-light"
         style={{ bottom }}
         aria-label={isFullscreen ? "全画面表示を終える" : "全画面で表示"}
         title={isFullscreen ? "全画面表示を終える（Esc）" : "全画面で表示"}
@@ -231,7 +233,7 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
         type="button"
         onClick={handleLocate}
         disabled={isLocating}
-        className="absolute right-4 z-[1000] flex items-center gap-1 rounded-full border border-blue-200 bg-white px-4 py-2 font-bold text-blue-600 shadow hover:bg-blue-50 disabled:opacity-60"
+        className="absolute right-4 z-[1000] flex min-h-11 items-center gap-1 rounded-full border-2 border-brand bg-background px-4 py-2 font-bold text-brand-dark shadow-card hover:bg-brand-light disabled:opacity-60"
         style={{ bottom }}
       >
         <LocateFixed size={18} />

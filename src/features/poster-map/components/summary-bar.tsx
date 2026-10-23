@@ -5,7 +5,7 @@ import { type BoardStatus, PIE_ORDER, STATUS_CONFIG } from "../status";
 export function SummaryBar({ boards }: { boards: readonly { status: BoardStatus }[] }) {
   const { total, counts, donePercent } = summarize(boards);
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-lg bg-card p-3 shadow-card">
       <div className="flex items-baseline gap-4">
         <div className="flex items-baseline gap-1">
           <span data-testid="summary-total" className="font-bold text-2xl">
@@ -14,13 +14,13 @@ export function SummaryBar({ boards }: { boards: readonly { status: BoardStatus 
           <span className="text-muted-foreground text-xs">か所</span>
         </div>
         <div className="flex items-baseline gap-1">
-          <span data-testid="summary-done" className="font-bold text-2xl text-green-600">
+          <span data-testid="summary-done" className="font-bold text-2xl text-ink">
             {counts.done.toLocaleString("ja-JP")}
           </span>
           <span className="text-muted-foreground text-xs">完了</span>
         </div>
         <div className="flex items-baseline gap-1">
-          <span data-testid="summary-percent" className="font-bold text-2xl text-blue-600">
+          <span data-testid="summary-percent" className="font-bold text-2xl text-brand-dark">
             {donePercent}%
           </span>
           <span className="text-muted-foreground text-xs">完了率</span>

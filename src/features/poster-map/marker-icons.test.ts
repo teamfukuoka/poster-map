@@ -14,19 +14,19 @@ function counts(partial: Partial<ReturnType<typeof emptyStatusCounts>>) {
 
 test("markerIconHtml はステータスの色の丸を返す", () => {
   const html = markerIconHtml("done");
-  expect(html).toContain("background-color: #10B981");
+  expect(html).toContain("background-color: #00AFCC");
   expect(html).toContain("width: 20px");
 });
 
 test("1種類だけなら円グラフは塗りつぶしの円1つ", () => {
   const svg = pieSegmentsSvg(counts({ done: 3 }), 3, 35);
-  expect(svg).toBe('<circle cx="17.5" cy="17.5" r="14.5" fill="#10B981" />');
+  expect(svg).toBe('<circle cx="17.5" cy="17.5" r="14.5" fill="#00AFCC" />');
 });
 
 test("複数なら完了から順に扇形を描く", () => {
   const svg = pieSegmentsSvg(counts({ not_yet: 1, done: 1 }), 2, 35);
   const strokes = [...svg.matchAll(/stroke="(#[0-9A-F]+)"/g)].map((m) => m[1]);
-  expect(strokes).toEqual(["#10B981", "#6B7280"]);
+  expect(strokes).toEqual(["#00AFCC", "#757575"]);
   expect(svg).toContain('transform="rotate(-90 17.5 17.5)"');
   expect(svg).toContain('transform="rotate(90 17.5 17.5)"');
 });

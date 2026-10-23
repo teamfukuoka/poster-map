@@ -41,7 +41,7 @@ export function BoardFilter({
         type="button"
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
-        className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg hover:bg-gray-50"
+        className="ml-auto flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-2 shadow-card hover:bg-brand-light"
       >
         <Filter className="h-3.5 w-3.5" />
         <span className="text-sm">
@@ -52,7 +52,7 @@ export function BoardFilter({
       </button>
 
       {isOpen && (
-        <div className="mt-1 max-h-[60vh] w-60 overflow-y-auto rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+        <div className="mt-1 max-h-[60vh] w-60 overflow-y-auto rounded-lg border border-border bg-background p-3 shadow-card">
           <div className="mb-3 flex gap-2">
             <Button variant="outline" size="sm" onClick={onSelectAll} className="h-7 text-xs">
               全て選択
@@ -63,13 +63,13 @@ export function BoardFilter({
           </div>
 
           {canShowMine && (
-            <div className="mb-3 flex items-center gap-2 border-gray-200 border-b pb-3">
+            <div className="mb-3 flex items-center gap-2 border-border border-b pb-3">
               <Checkbox
                 id="filter-mine"
                 checked={filterState.showOnlyMine}
                 onCheckedChange={onToggleShowOnlyMine}
               />
-              <Label htmlFor="filter-mine" className="cursor-pointer text-blue-600 text-xs">
+              <Label htmlFor="filter-mine" className="cursor-pointer text-brand-dark text-xs">
                 自分が更新したものだけ
               </Label>
             </div>
@@ -78,7 +78,7 @@ export function BoardFilter({
           <div className="space-y-3">
             {GROUPS.map(({ group, title }) => (
               <div key={group}>
-                <h3 className="mb-1.5 font-semibold text-gray-700 text-xs">{title}</h3>
+                <h3 className="mb-1.5 font-semibold text-ink text-xs">{title}</h3>
                 <div className="space-y-1.5">
                   {BOARD_STATUSES.filter((s) => STATUS_CONFIG[s].group === group).map((status) => (
                     <div key={status} className="flex items-center gap-2">
