@@ -3,7 +3,7 @@ import { toUserMessage } from "../errors";
 import { PIE_ORDER, STATUS_CONFIG } from "../status";
 import { GuideContent } from "./guide-content";
 
-const MEDIA_LINE = /記者の方や、ほかの陣営の方などに声をかけられたら/;
+const MEDIA_LINE = /記者の方や、ほかの候補者の事務局の方などに声をかけられたら/;
 const NET_LINE = /ネットで気になる投稿を見つけても/;
 const TRAVEL_COST = /交通費/;
 
@@ -30,7 +30,7 @@ test("参加していない人には、設定があっても陣営内の問い�
   render(<GuideContent isVolunteer={false} volunteerContact="陣営内の窓口" />);
   const section = sectionOf("問い合わせ先");
   expect(within(section).queryByText(/陣営内の窓口/)).not.toBeInTheDocument();
-  expect(within(section).getByText(/参加コードを受け取った陣営の担当者/)).toBeInTheDocument();
+  expect(within(section).getByText(/参加コードを受け取った事務局の担当者/)).toBeInTheDocument();
 });
 
 test("参加中の人には、設定された問い合わせ先を出す", () => {
@@ -41,7 +41,7 @@ test("参加中の人には、設定された問い合わせ先を出す", () =>
 test("問い合わせ先が未設定なら、参加中でも受け取った担当者を案内する", () => {
   render(<GuideContent isVolunteer />);
   expect(
-    within(sectionOf("問い合わせ先")).getByText(/参加コードを受け取った陣営の担当者/),
+    within(sectionOf("問い合わせ先")).getByText(/参加コードを受け取った事務局の担当者/),
   ).toBeInTheDocument();
 });
 

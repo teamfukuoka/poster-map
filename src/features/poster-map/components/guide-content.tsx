@@ -15,7 +15,7 @@ type Props = {
 // DB の private.site_settings（公開期間）と揃えること
 const PUBLIC_WINDOW_LABEL = "11/1（日）12:00 〜 11/14（土）23:55";
 
-const FALLBACK_CONTACT = "参加コードを受け取った陣営の担当者に連絡してください。";
+const FALLBACK_CONTACT = "参加コードを受け取った事務局の担当者に連絡してください。";
 
 const STATUS_MEANING: Record<BoardStatus, string> = {
   done: "貼り終えた",
@@ -148,8 +148,8 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           <li>
             スマートフォン（Safari か Chrome などのブラウザ。アプリのインストールは要りません）
           </li>
-          <li>陣営から受け取った参加コード</li>
-          <li>ポスターと貼る道具、貼る区画の番号（陣営からの案内に従ってください）</li>
+          <li>事務局から受け取った参加コード</li>
+          <li>ポスターと貼る道具、貼る区画の番号（事務局からの案内に従ってください）</li>
         </ul>
       </Section>
 
@@ -363,10 +363,10 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
       <Section id="rules">
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            ポスター貼りは、立候補の届出が受理された後から。11/1（日）、陣営から合図があってから始めてください。
+            ポスター貼りは、立候補の届出が受理された後から。11/1（日）、事務局から合図があってから始めてください。
           </li>
           <li>
-            貼るのは、陣営から受け取ったポスターだけ。公営の掲示場の、案内された番号の区画に貼ります。ほかの場所に貼ったり、自分で作ったりしないでください。
+            貼るのは、事務局から受け取ったポスターだけ。公営の掲示場の、案内された番号の区画に貼ります。ほかの場所に貼ったり、自分で作ったりしないでください。
           </li>
           <li>
             ほかの候補者のポスターには触らない。はがしたり、汚したり、動かしたりすると、法律で罰せられることがあります。
@@ -376,7 +376,7 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           </li>
           <li>
             お礼や報酬はありません。ボランティアどうしでも、物やお金のやりとりはしないでください。
-            {isVolunteer && "交通費などは陣営の案内に従ってください。"}
+            {isVolunteer && "交通費などは事務局の案内に従ってください。"}
           </li>
           <li>
             18 歳未満の方は、選挙運動を手伝えません。ご家族やお知り合いに 18
@@ -389,7 +389,7 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           {isVolunteer && (
             <>
               <li>
-                記者の方や、ほかの陣営の方などに声をかけられたら、その場で答えずに、問い合わせ先へ知らせてください。
+                記者の方や、ほかの候補者の事務局の方などに声をかけられたら、その場で答えずに、問い合わせ先へ知らせてください。
               </li>
               <li>
                 ネットで気になる投稿を見つけても、反論やコメントはせず、投稿のアドレスを問い合わせ先へ送ってください。
