@@ -123,8 +123,7 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
             参加コードは、受け取ったあなただけのものです。SNS・オープンチャット・グループの投稿に貼らないでください。
           </li>
           <li>
-            掲示場に向かう前に「予約」、貼り終えたら「完了」。この 2
-            回の報告だけで、地図がみんなの役に立ちます。
+            向かう掲示場を決めたら「予約」、貼り終えたら「完了」で報告します。予約は、ほかの人に「ここには私が行きます」と知らせるためのものです。
           </li>
           <li>
             危ない場所では無理をしないでください。「危険」で報告して、その場を離れてかまいません。
@@ -276,8 +275,23 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
               <td>予約したけれど行けなくなったら</td>
               <td>{STATUS_CONFIG.not_yet.label}（ほかの人が行けるように戻す）</td>
             </tr>
+            <tr>
+              <td>その場ですぐ貼れるとき</td>
+              <td>{STATUS_CONFIG.done.label}だけ（予約はしなくてかまいません）</td>
+            </tr>
           </tbody>
         </table>
+        <p className="font-semibold">予約とは</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>
+            ほかの人に「ここには私が行きます」と知らせるためのものです。予約すると、ほかの人の地図で黄色になり、同じ場所に二人で向かうのを防げます。
+          </li>
+          <li>
+            予約は時間がたっても消えません。行けなくなったら、必ず「{STATUS_CONFIG.not_yet.label}
+            」に戻してください。
+          </li>
+          <li>予約しても、ほかの人が報告できなくなるわけではありません。</li>
+        </ul>
         <p className="font-semibold">報告のしかた</p>
         <ol className="list-decimal space-y-1 pl-5">
           <li>地図のピンを押す</li>

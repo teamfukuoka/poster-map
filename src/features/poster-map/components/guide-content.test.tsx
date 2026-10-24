@@ -69,3 +69,15 @@ test("運営向けのメモやチェック記録は載せない", () => {
   expect(screen.queryByText(/運営メモ/)).not.toBeInTheDocument();
   expect(screen.queryByText(/チェック記録/)).not.toBeInTheDocument();
 });
+
+test("予約の説明：ほかの人へのお知らせ・すぐ貼れるなら完了だけ・時間では消えない", () => {
+  render(<GuideContent isVolunteer={false} />);
+  const section = sectionOf("報告する");
+  const rows = within(section)
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => row.textContent);
+  expect(rows).toContainEqual(expect.stringMatching(/その場ですぐ貼れるとき.*完了だけ/));
+  expect(within(section).getByText(/「ここには私が行きます」/)).toBeInTheDocument();
+  expect(within(section).getByText(/予約は時間がたっても消えません/)).toBeInTheDocument();
+});

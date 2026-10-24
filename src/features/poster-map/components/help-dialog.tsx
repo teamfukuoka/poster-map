@@ -60,8 +60,13 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
           <section className="space-y-2 text-sm">
             <h3 className="font-semibold">報告の手順</h3>
             <ol className="list-decimal space-y-1 pl-5">
-              <li>向かう掲示板を決めたら、ピンを押して「予約」で報告します。</li>
-              <li>貼り終えたら「完了」で報告します。</li>
+              <li>
+                向かう掲示板を決めたら、ピンを押して「予約」で報告します。ほかの人に「ここには私が行きます」と知らせるためのものです。
+              </li>
+              <li>
+                貼り終えたら「完了」で報告します。その場ですぐ貼れるときは、予約しないで「完了」だけでかまいません。
+              </li>
+              <li>行けなくなったら「未貼付」に戻してください。予約は時間がたっても消えません。</li>
               <li>
                 危なくて貼れない、ほかの候補者のポスターが貼られている、などのときは当てはまる状況を選び、連絡事項に様子を書いてください。
               </li>
