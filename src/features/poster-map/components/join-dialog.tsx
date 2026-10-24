@@ -68,6 +68,9 @@ export function JoinDialog({ open, onOpenChange, onJoined }: Props) {
               value={code}
               onChange={(e) => setCode(e.target.value)}
               autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               required
             />
           </div>

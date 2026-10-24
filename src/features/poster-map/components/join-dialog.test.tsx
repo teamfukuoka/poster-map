@@ -62,3 +62,11 @@ test("右上の閉じるボタンに日本語の名前がある", () => {
   render(<JoinDialog open onOpenChange={jest.fn()} onJoined={jest.fn()} />);
   expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
 });
+
+test("参加コードの欄は、スマホで先頭が大文字になったり自動で直されたりしない", () => {
+  render(<JoinDialog open onOpenChange={jest.fn()} onJoined={jest.fn()} />);
+  const input = screen.getByLabelText("参加コード");
+  expect(input).toHaveAttribute("autocapitalize", "none");
+  expect(input).toHaveAttribute("autocorrect", "off");
+  expect(input).toHaveAttribute("spellcheck", "false");
+});
