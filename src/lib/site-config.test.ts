@@ -60,4 +60,12 @@ describe("readSiteConfig", () => {
       "SOURCE_URL",
     );
   });
+
+  test("ボランティア向けの問い合わせ先は任意で、空白だけなら未設定として扱う", () => {
+    expect(readSiteConfig(base).volunteerContact).toBeUndefined();
+    expect(readSiteConfig({ ...base, VOLUNTEER_CONTACT: " " }).volunteerContact).toBeUndefined();
+    expect(readSiteConfig({ ...base, VOLUNTEER_CONTACT: " 陣営の窓口 " }).volunteerContact).toBe(
+      "陣営の窓口",
+    );
+  });
 });

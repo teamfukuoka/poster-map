@@ -41,6 +41,13 @@ test("集める情報と、プライバシーのページを案内する", () =>
   );
 });
 
+test("使い方ガイドを別のタブで開ける", () => {
+  render(<JoinDialog open onOpenChange={jest.fn()} onJoined={jest.fn()} />);
+  const link = screen.getByRole("link", { name: "使い方ガイド" });
+  expect(link).toHaveAttribute("href", "/guide");
+  expect(link).toHaveAttribute("target", "_blank");
+});
+
 test("参加が reject されても、確認中のままにせず汎用の文言を出す", async () => {
   mockedJoin.mockRejectedValue(new Error("network"));
   const onJoined = jest.fn();

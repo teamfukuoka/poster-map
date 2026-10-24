@@ -32,6 +32,9 @@ export function SiteFooter({ config }: { config: SiteConfig }) {
           >
             ソースコード（AGPL-3.0）
           </a>
+          <Link href="/guide" className="underline">
+            使い方ガイド
+          </Link>
           <Link href="/privacy" className="underline">
             プライバシーについて
           </Link>

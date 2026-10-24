@@ -1,5 +1,6 @@
 "use client";
 // Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10.
+import Link from "next/link";
 import {
   Dialog,
   DialogContent,
@@ -67,6 +68,13 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
             </ol>
           </section>
         )}
+
+        <p className="text-sm">
+          <Link href="/guide" className="underline">
+            くわしい使い方ガイド
+          </Link>
+          （参加のしかた・困ったとき・選挙のルール）
+        </p>
       </DialogContent>
     </Dialog>
   );

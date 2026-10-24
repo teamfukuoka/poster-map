@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 type Props = {
@@ -16,6 +17,9 @@ export function ClosedNotice({ canJoin, onJoin }: Props) {
           参加コードをお持ちの方
         </Button>
       )}
+      <Link href="/guide" className="text-sm underline">
+        使い方ガイド
+      </Link>
     </div>
   );
 }

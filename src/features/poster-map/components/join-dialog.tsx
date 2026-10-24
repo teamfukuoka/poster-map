@@ -56,6 +56,9 @@ export function JoinDialog({ open, onOpenChange, onJoined }: Props) {
             <DialogTitle>ボランティアとして参加</DialogTitle>
             <DialogDescription>
               運営から受け取った参加コードと、報告に表示するニックネームを入力してください。
+              <Link href="/guide" target="_blank" className="ml-1 underline">
+                使い方ガイド
+              </Link>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

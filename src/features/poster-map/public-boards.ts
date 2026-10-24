@@ -5,7 +5,8 @@ export type PublicBoardsResult =
   | { kind: "closed" }
   | { kind: "error"; message: string };
 
-const LOAD_ERROR = "地図のデータを読み込めませんでした。時間をおいて再読み込みしてください。";
+export const LOAD_ERROR =
+  "地図のデータを読み込めませんでした。時間をおいて再読み込みしてください。";
 
 export async function fetchPublicBoards(
   fetchImpl: typeof fetch = fetch,

@@ -6,10 +6,18 @@ export type SiteConfig = {
   sourceUrl: string;
   /** 運営者のプライバシーポリシー（公式サイトなど）。任意 */
   operatorPrivacyUrl?: string;
+  /** ボランティア向けの問い合わせ先。使い方ガイドで、参加中の人にだけ出す。任意 */
+  volunteerContact?: string;
 };
 
 type SiteEnv = Record<string, string | undefined>;
-type SiteKey = "SITE_NAME" | "OPERATOR_NAME" | "CONTACT" | "SOURCE_URL" | "OPERATOR_PRIVACY_URL";
+type SiteKey =
+  | "SITE_NAME"
+  | "OPERATOR_NAME"
+  | "CONTACT"
+  | "SOURCE_URL"
+  | "OPERATOR_PRIVACY_URL"
+  | "VOLUNTEER_CONTACT";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -54,5 +62,6 @@ export function readSiteConfig(env: SiteEnv = process.env): SiteConfig {
     contact: { label: contact, href },
     sourceUrl,
     operatorPrivacyUrl,
+    volunteerContact: env.VOLUNTEER_CONTACT?.trim() || undefined,
   };
 }
