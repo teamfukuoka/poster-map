@@ -107,7 +107,7 @@ const TABLE =
 export function GuideContent({ isVolunteer, volunteerContact }: Props) {
   const contact = isVolunteer && volunteerContact ? volunteerContact : FALLBACK_CONTACT;
   return (
-    <article className="max-w-2xl space-y-6 text-sm leading-relaxed">
+    <article className="mx-auto max-w-2xl space-y-6 text-sm leading-relaxed">
       <header className="space-y-2">
         <h1 className="font-bold text-xl">使い方ガイド</h1>
         <p className="text-muted-foreground">ボランティアのみなさんへ</p>

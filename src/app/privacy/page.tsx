@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: "プライバシーについて" };
 export default function PrivacyPage() {
   const config = readSiteConfig();
   return (
-    <article className="prose-sm max-w-2xl space-y-4 text-sm leading-relaxed">
+    <article className="prose-sm mx-auto max-w-2xl space-y-4 text-sm leading-relaxed">
       <h1 className="font-bold text-xl">プライバシーについて</h1>
 
       <section className="space-y-1">
