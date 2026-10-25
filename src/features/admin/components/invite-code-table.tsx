@@ -54,7 +54,7 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
       )}
       {rows.length === 0 ? (
         <p className="rounded-lg bg-card p-3 text-muted-foreground text-sm shadow-card">
-          まだ登録されていません
+          登録した参加コードがここに並びます。
         </p>
       ) : (
         <div className="overflow-x-auto rounded-lg bg-card p-3 shadow-card">
@@ -118,7 +118,7 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
               <p>
                 配布先の名前: <span className="font-bold text-foreground">{target?.label}</span>
               </p>
-              <p>失効させると、このコードでは新しく参加できなくなります。</p>
+              <p>失効させると、このコードでの新しい参加は止まります。</p>
               <div className="flex items-start gap-2">
                 <Checkbox
                   id="revoke-volunteers"

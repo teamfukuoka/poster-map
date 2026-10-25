@@ -4,7 +4,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionResult } from "@/features/poster-map/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { toAdminMessage } from "./errors";
-import type { AdminRole, AuditLogRow, Dashboard, InviteCodeRow, RevealedInviteCode } from "./types";
+import type {
+  AdminRole,
+  AuditLogRow,
+  Dashboard,
+  InviteCodeRow,
+  RevealedInviteCode,
+  SiteState,
+} from "./types";
 import { normalizeInviteCode, validateInviteCode, validateLabel } from "./validation";
 
 type Client = SupabaseClient<Database>;
@@ -18,6 +25,15 @@ export async function getAdminRole(client: Client): Promise<AdminRole | null> {
   const { data, error } = await client.rpc("admin_whoami");
   if (error) return null;
   return data === "admin" || data === "operator" ? data : null;
+}
+
+/** 公開の画面用。最初の画面（loadDashboard）のほかの表は読まない */
+export async function loadSiteState(client: Client): Promise<ActionResult<SiteState>> {
+  const { data, error } = await client.rpc("admin_site_state");
+  if (error) return failure(error);
+  const row = data?.[0];
+  if (!row) return failure(null);
+  return { ok: true, data: row };
 }
 
 export async function loadDashboard(client: Client): Promise<ActionResult<Dashboard>> {

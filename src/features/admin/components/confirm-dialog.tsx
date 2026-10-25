@@ -22,7 +22,7 @@ type Props = {
   confirmWord?: string;
   /**
    * 実行する処理。終わると（成功でも失敗でも）ダイアログを閉じる。
-   * 失敗の表示は呼び出し側が行う（ここでは例外を握りつぶさず、閉じるだけ）。
+   * 失敗の表示は呼び出し側が自分で catch して行う。ここに届いた例外は console.error に出して閉じる。
    */
   onConfirm: () => Promise<void>;
   destructive?: boolean;
@@ -30,11 +30,27 @@ type Props = {
 
 /** 実行前に確かめる小さなダイアログ。開くたびに入力欄と実行中の状態をまっさらにする */
 export function ConfirmDialog({ open, onOpenChange, ...rest }: Props) {
+  // 実行中は閉じさせない（Escape・外側のクリック・onOpenChange(false)）。
+  // 閉じても処理は続くので、結果が見えないまま二度押しされるのを防ぐ
+  const [isRunning, setIsRunning] = useState(false);
+  const blockWhileRunning = (event: Event) => {
+    if (isRunning) event.preventDefault();
+  };
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => !(isRunning && !next) && onOpenChange(next)}>
       {/* DialogContent は閉じると外れるので、中の状態は開くたびに作り直される */}
-      <DialogContent showCloseButton={false}>
-        <ConfirmBody onOpenChange={onOpenChange} {...rest} />
+      <DialogContent
+        showCloseButton={false}
+        onEscapeKeyDown={blockWhileRunning}
+        onPointerDownOutside={blockWhileRunning}
+        onInteractOutside={blockWhileRunning}
+      >
+        <ConfirmBody
+          onOpenChange={onOpenChange}
+          isRunning={isRunning}
+          setIsRunning={setIsRunning}
+          {...rest}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -48,15 +64,19 @@ function ConfirmBody({
   confirmWord,
   onConfirm,
   destructive,
-}: Omit<Props, "open">) {
+  isRunning,
+  setIsRunning,
+}: Omit<Props, "open"> & { isRunning: boolean; setIsRunning: (running: boolean) => void }) {
   const [typed, setTyped] = useState("");
-  const [isRunning, setIsRunning] = useState(false);
   const matches = confirmWord === undefined || typed === confirmWord;
 
   const run = async () => {
     setIsRunning(true);
     try {
       await onConfirm();
+    } catch (error) {
+      // 呼び出し側が自分で catch して画面に出す前提。ここまで届いたものは握りつぶさず記録する
+      console.error(error);
     } finally {
       setIsRunning(false);
       onOpenChange(false);
