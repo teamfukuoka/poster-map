@@ -1,7 +1,6 @@
 import { readSiteConfig } from "./site-config";
 
 const base = {
-  SITE_NAME: "福岡市 ポスター掲示板マップ",
   OPERATOR_NAME: "ポスター掲示板マップ運営",
   CONTACT: "map@example.jp",
   SOURCE_URL: "https://github.com/example/poster-map",
@@ -10,7 +9,6 @@ const base = {
 describe("readSiteConfig", () => {
   test("メールアドレスは mailto のリンクにする", () => {
     expect(readSiteConfig(base)).toEqual({
-      siteName: "福岡市 ポスター掲示板マップ",
       operatorName: "ポスター掲示板マップ運営",
       contact: { label: "map@example.jp", href: "mailto:map@example.jp" },
       sourceUrl: "https://github.com/example/poster-map",
@@ -26,7 +24,6 @@ describe("readSiteConfig", () => {
   });
 
   test.each([
-    "SITE_NAME",
     "OPERATOR_NAME",
     "CONTACT",
     "SOURCE_URL",

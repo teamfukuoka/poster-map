@@ -1,6 +1,5 @@
 // フッターに出す運営者・連絡先（公選法 142条の3 の表示）。Vercel の環境変数で設定する。
 export type SiteConfig = {
-  siteName: string;
   operatorName: string;
   contact: { label: string; href: string };
   sourceUrl: string;
@@ -12,7 +11,6 @@ export type SiteConfig = {
 
 type SiteEnv = Record<string, string | undefined>;
 type SiteKey =
-  | "SITE_NAME"
   | "OPERATOR_NAME"
   | "CONTACT"
   | "SOURCE_URL"
@@ -57,7 +55,6 @@ export function readSiteConfig(env: SiteEnv = process.env): SiteConfig {
   }
 
   return {
-    siteName: required(env, "SITE_NAME"),
     operatorName: required(env, "OPERATOR_NAME"),
     contact: { label: contact, href },
     sourceUrl,

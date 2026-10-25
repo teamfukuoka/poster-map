@@ -15,7 +15,8 @@
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm check:branding",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts",
     "import:boards": "tsx scripts/import-boards.ts",
-    "reconcile:boards": "tsx scripts/reconcile-boards.ts"
+    "reconcile:boards": "tsx scripts/reconcile-boards.ts",
+    "admin:local": "tsx scripts/create-local-admin.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

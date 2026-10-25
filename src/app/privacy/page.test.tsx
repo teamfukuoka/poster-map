@@ -1,12 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
 import PrivacyPage from "./page";
 
-const ENV_KEYS = ["SITE_NAME", "OPERATOR_NAME", "CONTACT", "SOURCE_URL"] as const;
+const ENV_KEYS = ["OPERATOR_NAME", "CONTACT", "SOURCE_URL"] as const;
 const saved: Record<string, string | undefined> = {};
 
 beforeEach(() => {
   for (const key of ENV_KEYS) saved[key] = process.env[key];
-  process.env.SITE_NAME = "テスト";
   process.env.OPERATOR_NAME = "（未定）";
   process.env.CONTACT = "example@example.invalid";
   process.env.SOURCE_URL = "https://example.invalid/source";

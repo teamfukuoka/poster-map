@@ -25,12 +25,32 @@ pnpm dev
 | `pnpm import:boards [--dry-run] [--prune [--confirm-prune=<件数>]] [--include-removed] <csv>...` | 掲示板データの取り込み（`DATABASE_URL` が必要）。`--prune` は CSV にない掲示板を DB から消す（予約・報告の履歴も消える）。消える掲示板があるときは `--confirm-prune=<件数>` が要る（まず付けずに実行すると、DB を変えずに消える番号と件数を表示する）。`--include-removed` は「削除」の行も含める |
 | `pnpm reconcile:boards --senkan <csv> --out <csv> --report <md> [--base data/sangin-2025]` | 選管一覧との照合。2026 年版の結果は `data/2026/boards.csv` |
 
+### 管理画面（/admin）をローカルで開く
+
+本番の管理画面は Google ログインで入ります。ローカルでは、パスワードの入り口を使います（ローカルの Supabase にだけ使えます）。
+
+1. `.env.local` に次の2つを足します（名前と意味は `.env.example`）。
+   - `APP_ORIGIN` — このサイトの origin。例: `http://localhost:3000`
+   - `ADMIN_PASSWORD_LOGIN` — `local` にすると、ログイン画面にパスワードの入り口が出ます。本番（Vercel）には設定しません。
+2. `supabase db reset` で seed を入れます。seed がローカル専用の管理者 `local-admin@example.invalid` を、管理者として一覧に登録します。
+3. ローカル管理者を作ります。パスワードは 8 文字以上で、自分で決めた使い捨ての値にします。ファイルには書きません。
+
+   ```bash
+   LOCAL_ADMIN_PASSWORD=<自分で決めた使い捨ての値> pnpm admin:local
+   ```
+
+4. `pnpm dev` を起動して `http://localhost:3000/admin/login` を開き、「パスワードでログイン」に `local-admin@example.invalid` と手順 3 の値を入れます。
+
+画面は「最初の画面」「参加コード」「公開とリセット」「操作の記録」の4つです（「公開とリセット」で操作できるのは管理者だけです。運営は状態を見るだけです）。
+
 ## 運用
 
-公開期間は DB の `private.site_settings` で管理します（2026-11-01 0:00〜11-14 23:58）。本番は公開停止（`force_hidden`）を ON で始め、立候補の届出の受理を確かめてから公開します。ローカルは `supabase/seed.sql` で公開中にしています。緊急時の非表示:
+公開期間は DB の `private.site_settings` で管理します（2026-11-01 0:00〜11-14 23:58）。本番は公開停止（`force_hidden`）を ON で始め、立候補の届出の受理を確かめてから、管理画面の「公開とリセット」の「公開する」で公開します。ローカルは `supabase/seed.sql` で公開中にしています。
+
+緊急時の非表示は、まず管理画面の「公開とリセット」の「一般の人への公開を止める」を使います。管理画面に入れないときだけ、SQL で止めます（`site_settings` の主キー `id` は boolean で、行は 1 つだけです）:
 
 ```sql
-update private.site_settings set force_hidden = true;
+update private.site_settings set force_hidden = true where id;
 ```
 
 DB の migration は GitHub Actions（`.github/workflows/migrate.yml`）が流します。`develop` に push すると確認用（staging）の Supabase に、`main` への PR は承認のあと本番の Supabase に流れます。本番は PR をマージする前に流します（DB が先、アプリが後）。migration は足すだけにし、すでにあるファイルは書き換えません。Auth の設定・掲示場の取り込み・参加コードは CI では扱いません。

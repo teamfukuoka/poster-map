@@ -118,6 +118,108 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_dangerous_boards: {
+        Args: never
+        Returns: {
+          board_id: string
+          name: string
+          note: string
+          number: string
+          reported_at: string
+          reported_by: string
+          ward: string
+        }[]
+      }
+      admin_list_invite_codes: {
+        Args: never
+        Returns: {
+          active_volunteers: number
+          created_at: string
+          has_code: boolean
+          id: string
+          label: string
+          revoked_at: string
+          volunteers: number
+        }[]
+      }
+      admin_publish: { Args: { p_confirm: string }; Returns: undefined }
+      admin_recent_audit_log: {
+        Args: never
+        Returns: {
+          action: string
+          actor_email: string
+          created_at: string
+          id: number
+          target: string
+        }[]
+      }
+      admin_recent_reports: {
+        Args: never
+        Returns: {
+          board_id: string
+          created_at: string
+          display_name: string
+          history_id: string
+          new_status: Database["public"]["Enums"]["poster_board_status"]
+          note: string
+          number: string
+          previous_status: Database["public"]["Enums"]["poster_board_status"]
+          user_id: string
+          ward: string
+        }[]
+      }
+      admin_register_invite_code: {
+        Args: { p_code: string; p_label: string }
+        Returns: string
+      }
+      admin_reset_rehearsal: { Args: { p_confirm: string }; Returns: undefined }
+      admin_reveal_invite_code: { Args: { p_id: string }; Returns: string }
+      admin_revert_acceptance: {
+        Args: { p_confirm: string }
+        Returns: undefined
+      }
+      admin_revoke_invite_code: {
+        Args: { p_id: string; p_revoke_volunteers: boolean }
+        Returns: number
+      }
+      admin_set_force_hidden: {
+        Args: { p_hidden: boolean }
+        Returns: undefined
+      }
+      admin_site_state: {
+        Args: never
+        Returns: {
+          accepted_at: string
+          force_hidden: boolean
+          is_public: boolean
+          public_from: string
+          public_until: string
+          rehearsal_reset_until: string
+          site_name: string
+        }[]
+      }
+      admin_stale_reservations: {
+        Args: never
+        Returns: {
+          board_id: string
+          name: string
+          number: string
+          reserved_at: string
+          reserved_by: string
+          ward: string
+        }[]
+      }
+      admin_ward_progress: {
+        Args: never
+        Returns: {
+          done: number
+          reserved: number
+          total: number
+          ward: string
+        }[]
+      }
+      admin_whoami: { Args: never; Returns: string }
+      current_site_name: { Args: never; Returns: string }
       is_active_volunteer: { Args: never; Returns: boolean }
       is_public_window: { Args: never; Returns: boolean }
       register_volunteer: {

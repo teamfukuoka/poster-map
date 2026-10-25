@@ -1,0 +1,52 @@
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { getAdminRole } from "@/features/admin/admin-service";
+import { logoutAction } from "@/features/admin/auth-actions";
+import { AdminNav } from "@/features/admin/components/admin-nav";
+import { createClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
+const ROLE_LABELS = { admin: "管理者", operator: "運営" } as const;
+
+function LogoutButton() {
+  return (
+    <form action={logoutAction}>
+      <Button type="submit" variant="outline" size="sm">
+        ログアウト
+      </Button>
+    </form>
+  );
+}
+
+// /admin/login はこの (staff) の外にあるので、ここからの redirect は繰り返さない。
+// 子ページは遷移のたびに描き直されないことがあるため、守りの本体は DB（RPC が役割を確かめる）。
+export default async function StaffLayout({ children }: { children: ReactNode }) {
+  const supabase = await createClient();
+  // getAdminRole は「一覧にない」も「RPC のエラー」も null。未ログインとの区別は getUser で行う
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) redirect("/admin/login");
+
+  const role = await getAdminRole(supabase);
+  if (!role) {
+    return (
+      <div className="mx-auto max-w-md space-y-4 py-6">
+        <p>このアカウントでは管理画面に入れません。管理者に一覧への追加を頼んでください。</p>
+        <LogoutButton />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-muted-foreground text-sm">ログイン中: {ROLE_LABELS[role]}</p>
+        <LogoutButton />
+      </div>
+      <AdminNav role={role} />
+      {children}
+    </div>
+  );
+}
