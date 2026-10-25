@@ -118,6 +118,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_recent_audit_log: {
+        Args: never
+        Returns: {
+          action: string
+          actor_email: string
+          created_at: string
+          id: number
+          target: string
+        }[]
+      }
+      admin_whoami: { Args: never; Returns: string }
       is_active_volunteer: { Args: never; Returns: boolean }
       is_public_window: { Args: never; Returns: boolean }
       register_volunteer: {

@@ -48,6 +48,61 @@ export async function signInVolunteer(
   return signedIn;
 }
 
+export type StaffRole = "admin" | "operator";
+
+/** 管理画面の設定（テスト専用）。日時は SQL 式をそのまま埋める（例: "now() - interval '1 minute'"） */
+export async function setAdminSettings(values: {
+  allowedAmr?: string[];
+  rehearsalResetUntil?: string;
+  staleReservedAfter?: string;
+}): Promise<void> {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+  if (values.allowedAmr) {
+    params.push(values.allowedAmr);
+    sets.push(`allowed_amr = $${params.length}::text[]`);
+  }
+  if (values.rehearsalResetUntil) {
+    sets.push(`rehearsal_reset_until = ${values.rehearsalResetUntil}`);
+  }
+  if (values.staleReservedAfter) {
+    sets.push(`stale_reserved_after = ${values.staleReservedAfter}`);
+  }
+  if (sets.length === 0) {
+    return;
+  }
+  await withPg((db) => db.query(`update private.admin_settings set ${sets.join(", ")}`, params));
+}
+
+/**
+ * メールとパスワードで作ったユーザーでログインする。role が null でなければ管理者の一覧に入れる。
+ * テストではパスワードログイン（amr = password）を通す設定にしておく。
+ */
+export async function signInStaff(
+  role: StaffRole | null,
+  opts: { email?: string } = {},
+): Promise<{ client: TestClient; userId: string; email: string }> {
+  const email = opts.email ?? `staff-${crypto.randomUUID()}@example.invalid`;
+  const client = anonClient();
+  const { data, error } = await client.auth.signUp({
+    email,
+    password: `pw-${crypto.randomUUID()}`,
+  });
+  if (error || !data.user || !data.session) {
+    throw error ?? new Error("メールでのサインアップに失敗しました");
+  }
+  if (role) {
+    await withPg((db) =>
+      db.query("insert into private.admin_members (email, role) values (lower($1), $2)", [
+        email,
+        role,
+      ]),
+    );
+  }
+  await setAdminSettings({ allowedAmr: ["oauth", "password"] });
+  return { client, userId: data.user.id, email };
+}
+
 export async function withPg<T>(fn: (db: Client) => Promise<T>): Promise<T> {
   const db = new Client({ connectionString: requireEnv("SUPABASE_TEST_DB_URL") });
   await db.connect();
@@ -65,7 +120,10 @@ export async function resetDatabase(): Promise<void> {
   }
   await withPg(async (db) => {
     await db.query(
-      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures cascade",
+      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures, private.admin_members, private.admin_audit_log cascade",
+    );
+    await db.query(
+      "update private.admin_settings set allowed_amr = '{oauth}', rehearsal_reset_until = '2026-11-01 00:00:00+09', stale_reserved_after = '2026-11-01 14:00:00+09'",
     );
     await db.query("delete from auth.users");
     await db.query(

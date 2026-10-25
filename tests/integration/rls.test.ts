@@ -336,12 +336,18 @@ describe("履歴と参加情報の見え方", () => {
     expect(data).toEqual([{ user_id: me.userId, display_name: "はなこ" }]);
   });
 
-  test("メールアドレスでは登録できない", async () => {
-    const { error } = await anonClient().auth.signUp({
-      email: "someone@example.com",
+  // ローカルは管理者として入るためにメールのサインアップを有効にしている（supabase/config.toml）。
+  // 本番の Email provider は OFF のまま。ここでは、メールのユーザーが参加者として扱われないことだけ確かめる
+  test("メールアドレスで作ったユーザーは参加者として扱われない", async () => {
+    const client = anonClient();
+    const { data, error } = await client.auth.signUp({
+      email: "someone@example.invalid",
       password: "long-enough-password-123",
     });
-    expect(error).not.toBeNull();
+    expect(error).toBeNull();
+    expect(data.session).not.toBeNull();
+    expect((await client.rpc("is_active_volunteer")).data).toBe(false);
+    expect((await client.from("volunteers").select("user_id")).data).toEqual([]);
   });
 });
 
@@ -356,6 +362,8 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
       anon: false,
       authenticated: true,
     },
+    { signature: "public.admin_whoami()", anon: false, authenticated: true },
+    { signature: "public.admin_recent_audit_log()", anon: false, authenticated: true },
   ] as const;
 
   test("public スキーマの全関数について anon / authenticated / public の権限が意図どおり", async () => {
