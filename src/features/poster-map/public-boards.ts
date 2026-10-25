@@ -1,3 +1,4 @@
+import { fromPublicBoard, type PublicBoard } from "./public-status";
 import type { MapBoard } from "./types";
 
 export type PublicBoardsResult =
@@ -15,8 +16,8 @@ export async function fetchPublicBoards(
     const response = await fetchImpl("/api/boards");
     if (response.status === 404) return { kind: "closed" };
     if (!response.ok) return { kind: "error", message: LOAD_ERROR };
-    const body = (await response.json()) as { boards: MapBoard[] };
-    return { kind: "ok", boards: body.boards };
+    const body = (await response.json()) as { boards: PublicBoard[] };
+    return { kind: "ok", boards: body.boards.map(fromPublicBoard) };
   } catch {
     return { kind: "error", message: LOAD_ERROR };
   }

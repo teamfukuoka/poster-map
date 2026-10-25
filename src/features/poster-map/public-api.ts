@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { fetchAllBoards } from "./boards-query";
-import type { MapBoard } from "./types";
+import { type PublicBoard, toPublicBoard } from "./public-status";
 
 export const PUBLIC_CACHE_CONTROL = "public, max-age=0, s-maxage=30, stale-while-revalidate=30";
 export const CLOSED_CACHE_CONTROL = "public, max-age=0, s-maxage=30";
@@ -10,7 +10,7 @@ export const NO_STORE = "no-store";
 export type PublicApiResult = {
   status: 200 | 400 | 404 | 500;
   cacheControl: string;
-  body: { boards: MapBoard[] } | { error: "closed" | "unavailable" | "bad_request" };
+  body: { boards: PublicBoard[] } | { error: "closed" | "unavailable" | "bad_request" };
 };
 
 /**
@@ -41,7 +41,11 @@ export async function buildPublicBoardsResponse(
   }
   try {
     const boards = await fetchAllBoards(client);
-    return { status: 200, cacheControl: PUBLIC_CACHE_CONTROL, body: { boards } };
+    return {
+      status: 200,
+      cacheControl: PUBLIC_CACHE_CONTROL,
+      body: { boards: boards.map(toPublicBoard) },
+    };
   } catch (e) {
     console.error("fetchAllBoards failed", e);
     return { status: 500, cacheControl: NO_STORE, body: { error: "unavailable" } };

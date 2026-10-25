@@ -13,6 +13,14 @@ test("200 なら掲示板を返す", async () => {
   });
 });
 
+test("通信の中の「要確認」を、他候補のポスターの状況に戻す", async () => {
+  const boards = [{ id: "1", status: "needs_check" }];
+  await expect(fetchPublicBoards(fakeFetch(200, { boards }))).resolves.toEqual({
+    kind: "ok",
+    boards: [{ id: "1", status: "error_wrong_poster" }],
+  });
+});
+
 test("404 は公開期間外", async () => {
   await expect(fetchPublicBoards(fakeFetch(404, { error: "not_public" }))).resolves.toEqual({
     kind: "closed",

@@ -34,6 +34,15 @@ describe("buildPublicBoardsResponse", () => {
     });
   });
 
+  test("他候補のポスターの状況は、一般向けの JSON では別の名前で返す", async () => {
+    await insertBoard("A-1", "error_wrong_poster");
+    const result = await buildPublicBoardsResponse(anonClient());
+    expect(JSON.stringify(result.body)).not.toContain("wrong_poster");
+    expect(result.body).toEqual({
+      boards: [expect.objectContaining({ number: "A-1", status: "needs_check" })],
+    });
+  });
+
   test("公開期間外は 404", async () => {
     await insertBoard("A-1");
     await setPublicWindow("hidden");
