@@ -154,11 +154,12 @@ export async function setPublicWindow(mode: PublicWindow): Promise<void> {
 export async function insertBoard(
   number: string,
   status: Database["public"]["Enums"]["poster_board_status"] = "not_yet",
+  ward = "中央区",
 ): Promise<string> {
   return withPg(async (db) => {
     const result = await db.query<{ id: string }>(
-      "insert into public.poster_boards (number, name, address, ward, lat, long, status) values ($1, $2, $3, '中央区', 33.59, 130.40, $4) returning id",
-      [number, `掲示板${number}`, `中央区天神${number}`, status],
+      "insert into public.poster_boards (number, name, address, ward, lat, long, status) values ($1, $2, $3, $5, 33.59, 130.40, $4) returning id",
+      [number, `掲示板${number}`, `${ward}天神${number}`, status, ward],
     );
     return result.rows[0].id;
   });

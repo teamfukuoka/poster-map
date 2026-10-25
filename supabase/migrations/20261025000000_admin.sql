@@ -154,3 +154,173 @@ grant execute on function
   public.admin_whoami(),
   public.admin_recent_audit_log()
   to authenticated;
+
+-- 最初の画面（読むだけ・運営も読める・操作の記録は残さない） -----------------
+
+-- 長い予約: 予約のまま6時間以上動いていない掲示場。stale_reserved_after より前は出さない
+-- （告示前のリハーサルの予約を、本番の「長い予約」に混ぜないため）。
+-- reserved_by は、その掲示場で最後に reserved にした人のニックネーム（履歴がなければ null）
+create function public.admin_stale_reservations()
+returns table (
+  board_id uuid,
+  number text,
+  ward text,
+  name text,
+  reserved_at timestamptz,
+  reserved_by text
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin_role('operator');
+  return query
+  select b.id, b.number, b.ward, b.name, b.updated_at, h.display_name
+  from public.poster_boards b
+  cross join private.admin_settings s
+  left join lateral (
+    select x.display_name
+    from public.poster_board_status_history x
+    where x.board_id = b.id and x.new_status = 'reserved'
+    order by x.created_at desc, x.id desc
+    limit 1
+  ) h on true
+  where b.status = 'reserved'
+    and now() >= s.stale_reserved_after
+    and b.updated_at <= now() - interval '6 hours'
+  order by b.updated_at, b.number;
+end;
+$$;
+
+-- 危険: 「危険で行けていない」の掲示場と、その最新の報告
+create function public.admin_dangerous_boards()
+returns table (
+  board_id uuid,
+  number text,
+  ward text,
+  name text,
+  reported_at timestamptz,
+  reported_by text,
+  note text
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin_role('operator');
+  return query
+  select b.id, b.number, b.ward, b.name, h.created_at, h.display_name, h.note
+  from public.poster_boards b
+  left join lateral (
+    select x.created_at, x.display_name, x.note
+    from public.poster_board_status_history x
+    where x.board_id = b.id and x.new_status = 'not_yet_dangerous'
+    order by x.created_at desc, x.id desc
+    limit 1
+  ) h on true
+  where b.status = 'not_yet_dangerous'
+  order by h.created_at desc nulls last, b.number;
+end;
+$$;
+
+-- 新しい連絡事項: 直近24時間の、連絡事項つき・他候補のポスター・その他の報告。
+-- user_id は「この人を止める」で使う
+create function public.admin_recent_reports()
+returns table (
+  history_id uuid,
+  board_id uuid,
+  number text,
+  ward text,
+  user_id uuid,
+  display_name text,
+  previous_status public.poster_board_status,
+  new_status public.poster_board_status,
+  note text,
+  created_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin_role('operator');
+  return query
+  select h.id, h.board_id, b.number, b.ward, h.user_id, h.display_name,
+         h.previous_status, h.new_status, h.note, h.created_at
+  from public.poster_board_status_history h
+  join public.poster_boards b on b.id = h.board_id
+  where h.created_at >= now() - interval '24 hours'
+    and (h.note is not null or h.new_status in ('error_wrong_poster', 'other'))
+  order by h.created_at desc, h.id desc;
+end;
+$$;
+
+-- 区ごとの進み具合（並びは画面が WARDS の順に直す）
+create function public.admin_ward_progress()
+returns table (
+  ward text,
+  total int,
+  done int,
+  reserved int
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin_role('operator');
+  return query
+  select b.ward,
+         count(*)::int,
+         (count(*) filter (where b.status = 'done'))::int,
+         (count(*) filter (where b.status = 'reserved'))::int
+  from public.poster_boards b
+  group by b.ward
+  order by b.ward;
+end;
+$$;
+
+-- 公開の状態。is_public は public.is_public_window() と同じ判定
+create function public.admin_site_state()
+returns table (
+  public_from timestamptz,
+  public_until timestamptz,
+  force_hidden boolean,
+  is_public boolean,
+  rehearsal_reset_until timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin_role('operator');
+  return query
+  select ss.public_from, ss.public_until, ss.force_hidden,
+         public.is_public_window(), a.rehearsal_reset_until
+  from private.site_settings ss
+  cross join private.admin_settings a;
+end;
+$$;
+
+revoke execute on function
+  public.admin_stale_reservations(),
+  public.admin_dangerous_boards(),
+  public.admin_recent_reports(),
+  public.admin_ward_progress(),
+  public.admin_site_state()
+  from public, anon, authenticated;
+grant execute on function
+  public.admin_stale_reservations(),
+  public.admin_dangerous_boards(),
+  public.admin_recent_reports(),
+  public.admin_ward_progress(),
+  public.admin_site_state()
+  to authenticated;

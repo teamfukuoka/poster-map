@@ -118,6 +118,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_dangerous_boards: {
+        Args: never
+        Returns: {
+          board_id: string
+          name: string
+          note: string
+          number: string
+          reported_at: string
+          reported_by: string
+          ward: string
+        }[]
+      }
       admin_recent_audit_log: {
         Args: never
         Returns: {
@@ -126,6 +138,51 @@ export type Database = {
           created_at: string
           id: number
           target: string
+        }[]
+      }
+      admin_recent_reports: {
+        Args: never
+        Returns: {
+          board_id: string
+          created_at: string
+          display_name: string
+          history_id: string
+          new_status: Database["public"]["Enums"]["poster_board_status"]
+          note: string
+          number: string
+          previous_status: Database["public"]["Enums"]["poster_board_status"]
+          user_id: string
+          ward: string
+        }[]
+      }
+      admin_site_state: {
+        Args: never
+        Returns: {
+          force_hidden: boolean
+          is_public: boolean
+          public_from: string
+          public_until: string
+          rehearsal_reset_until: string
+        }[]
+      }
+      admin_stale_reservations: {
+        Args: never
+        Returns: {
+          board_id: string
+          name: string
+          number: string
+          reserved_at: string
+          reserved_by: string
+          ward: string
+        }[]
+      }
+      admin_ward_progress: {
+        Args: never
+        Returns: {
+          done: number
+          reserved: number
+          total: number
+          ward: string
         }[]
       }
       admin_whoami: { Args: never; Returns: string }

@@ -364,6 +364,11 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
     },
     { signature: "public.admin_whoami()", anon: false, authenticated: true },
     { signature: "public.admin_recent_audit_log()", anon: false, authenticated: true },
+    { signature: "public.admin_stale_reservations()", anon: false, authenticated: true },
+    { signature: "public.admin_dangerous_boards()", anon: false, authenticated: true },
+    { signature: "public.admin_recent_reports()", anon: false, authenticated: true },
+    { signature: "public.admin_ward_progress()", anon: false, authenticated: true },
+    { signature: "public.admin_site_state()", anon: false, authenticated: true },
   ] as const;
 
   test("public スキーマの全関数について anon / authenticated / public の権限が意図どおり", async () => {
