@@ -76,7 +76,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb  # v1.7.3（秘密情報を扱う job なので commit で固定する）
         with:
           version: 2.72.7
       - name: 接続先を確かめる
@@ -115,7 +115,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb  # v1.7.3（秘密情報を扱う job なので commit で固定する）
         with:
           version: 2.72.7
       - name: 接続先を確かめる
