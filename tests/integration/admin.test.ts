@@ -400,7 +400,13 @@ describe("admin_set_force_hidden", () => {
 });
 
 describe("admin_reset_rehearsal", () => {
+  // 締切を現在時刻からの相対にする（実際の日付が既定の締切を過ぎても結果が変わらないように）
+  async function openResetWindow() {
+    await setAdminSettings({ rehearsalResetUntil: "now() + interval '1 day'" });
+  }
+
   async function seedRehearsal() {
+    await openResetWindow();
     const id = await insertBoard("A-1", "done");
     const other = await insertBoard("A-2", "reserved");
     await insertHistory(id, { previous: "not_yet", next: "reserved" });

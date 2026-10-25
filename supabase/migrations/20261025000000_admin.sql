@@ -356,17 +356,23 @@ declare
   v_deleted int;
 begin
   v_actor := private.require_admin_role('admin');
-  if now() >= (select s.rehearsal_reset_until from private.admin_settings s) then
+  -- 設定の行がなければ締切を過ぎたものとして断る
+  if now() >= coalesce(
+    (select s.rehearsal_reset_until from private.admin_settings s),
+    '-infinity'::timestamptz
+  ) then
     raise exception 'reset_closed';
   end if;
   if p_confirm is distinct from 'リセット' then
     raise exception 'confirm_mismatch';
   end if;
+  -- 先に掲示場を更新する。操作中の update_board_status が持つ掲示場の行ロックをここで待つので、
+  -- その後の delete は、その操作が確定させた履歴も見える（順序を逆にすると履歴が残りうる）
+  update public.poster_boards set status = 'not_yet', updated_at = now() where true;
   with d as (
     delete from public.poster_board_status_history where true returning 1
   )
   select count(*)::int into v_deleted from d;
-  update public.poster_boards set status = 'not_yet', updated_at = now() where true;
   perform private.write_audit(v_actor, 'reset_rehearsal', v_deleted::text);
 end;
 $$;
