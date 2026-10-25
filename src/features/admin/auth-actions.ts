@@ -20,7 +20,10 @@ export async function startGoogleLoginAction(): Promise<ActionResult<{ url: stri
       skipBrowserRedirect: true,
     },
   });
-  if (error || !data.url) return { ok: false, error: FALLBACK_MESSAGE };
+  if (error || !data.url) {
+    console.error("google login start failed", error?.code ?? error?.name ?? "no_url");
+    return { ok: false, error: FALLBACK_MESSAGE };
+  }
   return { ok: true, data: { url: data.url } };
 }
 
@@ -39,6 +42,8 @@ export async function passwordLoginAction(
 
 export async function logoutAction(): Promise<void> {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  // 通信の失敗などで Supabase 側の失効に失敗しても、この端末の Cookie は必ず消す
+  if (error) await supabase.auth.signOut({ scope: "local" });
   redirect("/admin/login");
 }

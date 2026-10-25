@@ -1,13 +1,16 @@
 const ADMIN_ROOT = "/admin";
+// `//`（外部への相対 URL）、`\`、`..` と `%2e`（/admin の外へ出る道）、制御文字（改行・タブ）
+// biome-ignore lint/suspicious/noControlCharactersInRegex: 制御文字を弾くのが目的
+const UNSAFE_PATH = /\/\/|\\|\.\.|%2e|[\u0000-\u001f\u007f]/i;
 
 /**
- * ログイン後に戻す先。/admin 配下の道だけを通し、外部の URL や `//`・`\` を含む値は /admin に倒す
- * （オープンリダイレクトを防ぐ）。
+ * ログイン後に戻す先。/admin 配下の道だけを通す。外部の URL、`//`・`\`・`..`・`%2e`、制御文字を
+ * 含む値は /admin に倒す（オープンリダイレクトと、/admin の外への抜け道を防ぐ）。
  */
 export function safeAdminPath(next: string | null): string {
   if (next === null) return ADMIN_ROOT;
   const isAdminPath = next === ADMIN_ROOT || next.startsWith(`${ADMIN_ROOT}/`);
-  if (!isAdminPath || next.includes("//") || next.includes("\\")) return ADMIN_ROOT;
+  if (!isAdminPath || UNSAFE_PATH.test(next)) return ADMIN_ROOT;
   return next;
 }
 
