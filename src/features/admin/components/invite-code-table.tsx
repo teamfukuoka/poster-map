@@ -57,7 +57,7 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
           登録した参加コードがここに並びます。
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg bg-card p-3 shadow-card">
+        <div className="relative overflow-x-auto rounded-lg bg-card p-3 shadow-card">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-muted-foreground text-xs">
@@ -84,7 +84,7 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
                     <td className={`${TD} whitespace-nowrap`}>
                       {row.volunteers}人（うち止めていない {row.active_volunteers}人）
                     </td>
-                    <td className={TD}>
+                    <td className={`${TD} min-w-48`}>
                       <InviteCodeReveal id={row.id} hasCode={row.has_code} />
                     </td>
                     {isAdmin && (

@@ -52,7 +52,7 @@ export function InviteCodeReveal({ id, hasCode }: { id: string; hasCode: boolean
   if (state.kind === "shown") {
     return (
       <span className="inline-flex items-center gap-2">
-        <code className="break-all font-mono">{state.code}</code>
+        <code className="whitespace-nowrap font-mono">{state.code}</code>
         <Button type="button" variant="outline" size="sm" onClick={() => copyCode(state.code)}>
           <Copy aria-hidden />
           コピー
