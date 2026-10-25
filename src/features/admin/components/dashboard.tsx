@@ -50,7 +50,7 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
   const staleEmptyText = isBeforeStaleTable(now) ? "11月1日14:00から表示します" : EMPTY;
   return (
     <div className="space-y-6">
-      <SiteStateBadge label={siteStateLabel(data.site, now)} />
+      <SiteStateBadge label={siteStateLabel(data.site)} />
 
       <Section
         title="長く残っている予約"

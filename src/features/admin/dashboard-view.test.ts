@@ -41,29 +41,24 @@ const site = (over: Partial<SiteState>): SiteState => ({
   rehearsal_reset_until: "2026-11-01T00:00:00+09:00",
   ...over,
 });
-const inPeriod = new Date("2026-10-25T12:00:00+09:00");
-const afterPeriod = new Date("2026-12-02T12:00:00+09:00");
 
-test("siteStateLabel: 期間内で止めていなければ公開中", () => {
-  expect(siteStateLabel(site({}), inPeriod)).toBe("公開中");
+test("siteStateLabel: 止めていなくて公開の期間内なら公開中", () => {
+  expect(siteStateLabel(site({}))).toBe("公開中");
 });
 
-test("siteStateLabel: 期間内で force_hidden なら止めている", () => {
-  expect(siteStateLabel(site({ force_hidden: true, is_public: false }), inPeriod)).toBe(
-    "止めている",
-  );
+test("siteStateLabel: force_hidden なら期間の内でも外でも止めている", () => {
+  expect(siteStateLabel(site({ force_hidden: true, is_public: false }))).toBe("止めている");
+  expect(
+    siteStateLabel(
+      site({ force_hidden: true, is_public: false, public_until: "2026-10-01T00:00:00+09:00" }),
+    ),
+  ).toBe("止めている");
 });
 
-test("siteStateLabel: 期間外なら期間外（force_hidden でも）", () => {
-  expect(siteStateLabel(site({ is_public: false }), afterPeriod)).toBe("期間外");
-  expect(siteStateLabel(site({ force_hidden: true, is_public: false }), afterPeriod)).toBe(
-    "期間外",
-  );
-});
-
-test("siteStateLabel: 期間の終わりの瞬間は期間外", () => {
-  const atEnd = new Date("2026-12-01T00:00:00+09:00");
-  expect(siteStateLabel(site({ is_public: false }), atEnd)).toBe("期間外");
+test("siteStateLabel: 止めていなくて期間外なら期間外", () => {
+  expect(
+    siteStateLabel(site({ is_public: false, public_until: "2026-10-01T00:00:00+09:00" })),
+  ).toBe("期間外");
 });
 
 test("isBeforeStaleTable は 11/1 14:00 (JST) を境にする", () => {

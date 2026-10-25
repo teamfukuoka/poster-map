@@ -13,13 +13,9 @@ export function sortWardProgress(rows: WardProgress[]): WardProgress[] {
   return [...rows].sort((a, b) => wardOrder(a.ward) - wardOrder(b.ward));
 }
 
-/**
- * 公開の状態。期間内に force_hidden で止めているときだけ「止めている」。
- * 期間外は止めていても「期間外」（止めても止めなくても見えないため）。
- */
-export function siteStateLabel(s: SiteState, now: Date = new Date()): SiteStateLabel {
-  const inPeriod = now >= new Date(s.public_from) && now < new Date(s.public_until);
-  if (s.force_hidden && inPeriod) return "止めている";
+/** 公開の状態。force_hidden で止めていれば、期間の内外にかかわらず「止めている」 */
+export function siteStateLabel(s: SiteState): SiteStateLabel {
+  if (s.force_hidden) return "止めている";
   return s.is_public ? "公開中" : "期間外";
 }
 
