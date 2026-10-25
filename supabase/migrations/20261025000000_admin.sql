@@ -430,7 +430,10 @@ begin
   from private.invite_codes
   where revoked_at is null
     and code_hash = extensions.crypt(private.trim_js(coalesce(p_code, '')), code_hash)
-  limit 1;
+  limit 1
+  -- 失効の update と同時に走っても、失効はこの参加が確定するまで待つ（まとめて止める対象に、この人も入る）。
+  -- 失効が先なら、行を取り直したときに revoked_at を見て断る
+  for share;
 
   if v_code_id is null then
     -- 窓の外の古い記録はここで消す
@@ -529,6 +532,8 @@ declare
   v_id uuid;
 begin
   v_actor := private.require_admin_role('admin');
+  -- 同じコードを同時に登録して重複させないよう、登録を順番に処理する
+  perform pg_advisory_xact_lock(hashtextextended('admin_register_invite_code', 0));
   if char_length(v_code) not between 8 and 64
      or v_code !~ '^[!-~]+$'
      or v_code !~ '[A-Za-z]'
