@@ -57,6 +57,14 @@ export function InviteCodeReveal({ id, hasCode }: { id: string; hasCode: boolean
           <Copy aria-hidden />
           コピー
         </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setState({ kind: "hidden" })}
+        >
+          隠す
+        </Button>
       </span>
     );
   }

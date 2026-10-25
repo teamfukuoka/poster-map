@@ -10,7 +10,8 @@ import { PUBLISH_CONFIRM_WORD, REVERT_CONFIRM_WORD } from "../validation";
 import { ConfirmDialog } from "./confirm-dialog";
 import { SiteStateBadge } from "./site-state-badge";
 
-const CACHE_NOTE = "一般の人の画面には、最大60秒ほど前の表示が残ります。";
+const CACHE_NOTE =
+  "一般の人の画面には、最大60秒ほど前の表示が残ります。開いたままの画面は、再読み込みすると変わります。";
 
 type DialogName = "stop" | "resume" | "publish" | "revert";
 

@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { fetchAllBoards, fetchAllPages } from "./boards-query";
 import { toUserMessage } from "./errors";
-import { normalizeInviteCode } from "./invite-code";
+import { normalizeJoinCode } from "./invite-code";
 import { DISPLAY_NAME_MAX_LENGTH, HISTORY_LIMIT, NOTE_MAX_LENGTH } from "./limits";
 import { isBoardStatus } from "./status";
 import type { ActionResult, HistoryItem, MapBoard } from "./types";
@@ -57,8 +57,8 @@ export async function joinAsVolunteer(
   if (name.length < 1 || name.length > DISPLAY_NAME_MAX_LENGTH) {
     return { ok: false, error: toUserMessage({ message: "invalid_display_name" }) };
   }
-  // 全角で打たれた記号・英数字は半角に揃え、前後の空白は落とす（登録時と同じ）
-  const normalizedCode = normalizeInviteCode(code);
+  // 全角で打たれた記号・英数字は半角に、ダッシュに見える文字は「-」に揃え、前後の空白は落とす
+  const normalizedCode = normalizeJoinCode(code);
   if (!normalizedCode) {
     return { ok: false, error: toUserMessage({ message: "invalid_invite_code" }) };
   }

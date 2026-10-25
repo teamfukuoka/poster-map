@@ -41,12 +41,14 @@ pnpm dev
 
 4. `pnpm dev` を起動して `http://localhost:3000/admin/login` を開き、「パスワードでログイン」に `local-admin@example.invalid` と手順 3 の値を入れます。
 
-画面は「最初の画面」「参加コード」「公開とリセット」「操作の記録」の4つです（「公開とリセット」は管理者だけに出ます）。
+画面は「最初の画面」「参加コード」「公開とリセット」「操作の記録」の4つです（「公開とリセット」で操作できるのは管理者だけです。運営は状態を見るだけです）。
 
 ## 運用
 
-公開期間は DB の `private.site_settings` で管理します。緊急時の非表示:
+公開期間は DB の `private.site_settings` で管理します。
+
+緊急時の非表示は、まず管理画面の「公開とリセット」の「一般の人への公開を止める」を使います。管理画面に入れないときだけ、SQL で止めます（`site_settings` の主キー `id` は boolean で、行は 1 つだけです）:
 
 ```sql
-update private.site_settings set force_hidden = true;
+update private.site_settings set force_hidden = true where id;
 ```

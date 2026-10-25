@@ -19,7 +19,11 @@ export function siteStateLabel(s: SiteState): SiteStateLabel {
   return s.is_public ? "公開中" : "期間外";
 }
 
-/** 長く残っている予約の表を出し始める時刻（11/1 8:00 から6時間） */
+/**
+ * 長く残っている予約の表を出し始める時刻（11/1 8:00 から6時間）。
+ * DB の admin_settings.stale_reserved_after（supabase/migrations/20261025000000_admin.sql）と同じ値にそろえること。
+ * 片方を変えたら、もう片方も変える。
+ */
 export const STALE_TABLE_FROM = "2026-11-01T14:00:00+09:00";
 
 export function isBeforeStaleTable(now: Date = new Date()): boolean {
