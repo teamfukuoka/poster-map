@@ -27,6 +27,8 @@ type Props = {
   /** フィルター適用後の掲示板 */
   boards: readonly MapBoard[];
   onBoardClick: (board: MapBoard) => void;
+  /** 参加中のボランティアか。クラスタのツールチップの呼び方を変える */
+  isVolunteer: boolean;
   /** 地図の右上に重ねるもの（フィルター） */
   controls?: ReactNode;
 };
@@ -47,15 +49,21 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   });
 }
 
-export default function PosterMap({ boards, onBoardClick, controls }: Props) {
+export default function PosterMap({ boards, onBoardClick, isVolunteer, controls }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const locationRef = useRef<L.CircleMarker | null>(null);
   /** 検索で最後に選んだ掲示板。移動の間に選び直されたら、前のダイアログは開かない */
   const lastSearchedRef = useRef<MapBoard | null>(null);
+  /** 地図は一度だけ作るので、ツールチップからは ref で今の値を読む */
+  const isVolunteerRef = useRef(isVolunteer);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+
+  useEffect(() => {
+    isVolunteerRef.current = isVolunteer;
+  }, [isVolunteer]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -81,10 +89,13 @@ export default function PosterMap({ boards, onBoardClick, controls }: Props) {
     cluster.on("clustermouseover", (e) => {
       const target = (e as L.LeafletEvent & { propagatedFrom: L.MarkerCluster }).propagatedFrom;
       target
-        .bindTooltip(clusterTooltipHtml(countByStatus(childBoards(target))), {
-          direction: "top",
-          className: "cluster-tooltip",
-        })
+        .bindTooltip(
+          clusterTooltipHtml(countByStatus(childBoards(target)), isVolunteerRef.current),
+          {
+            direction: "top",
+            className: "cluster-tooltip",
+          },
+        )
         .openTooltip();
     });
     cluster.on("clustermouseout", (e) => {

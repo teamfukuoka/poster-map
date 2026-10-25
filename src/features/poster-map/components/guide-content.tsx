@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { FALLBACK_MESSAGE, toUserMessage } from "../errors";
 import { DISPLAY_NAME_MAX_LENGTH, NOTE_MAX_LENGTH } from "../limits";
 import { LOAD_ERROR } from "../public-boards";
-import { type BoardStatus, PIE_ORDER, STATUS_CONFIG } from "../status";
+import { type BoardStatus, PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
 
 type Props = {
   /** 参加中のボランティアか。取材・ネットの投稿への対応、交通費の案内、陣営内の問い合わせ先は参加中の人にだけ出す */
@@ -13,7 +13,7 @@ type Props = {
 };
 
 // DB の private.site_settings（公開期間）と揃えること
-const PUBLIC_WINDOW_LABEL = "11/1（日）12:00 〜 11/14（土）23:55";
+const PUBLIC_WINDOW_LABEL = "11/1（日）〜 11/14（土）23:58";
 
 const FALLBACK_CONTACT = "参加コードを受け取った事務局の担当者に連絡してください。";
 
@@ -24,6 +24,11 @@ const STATUS_MEANING: Record<BoardStatus, string> = {
   not_yet_dangerous: "貼りに行くのが危ない",
   error_wrong_poster: "貼る区画にほかのポスターがあって貼れない",
   other: "連絡事項に様子が書いてある",
+};
+
+/** 一般の人に出す意味。他候補のポスターがあることは、参加中のボランティアにだけ出す */
+const PUBLIC_STATUS_MEANING: Partial<Record<BoardStatus, string>> = {
+  error_wrong_poster: "確認が必要",
 };
 
 const TROUBLES: { message: string; action: string }[] = [
@@ -222,8 +227,8 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
                     style={{ backgroundColor: STATUS_CONFIG[status].color }}
                   />
                 </td>
-                <td>{STATUS_CONFIG[status].shortLabel}</td>
-                <td>{STATUS_MEANING[status]}</td>
+                <td>{statusLabels(status, isVolunteer).shortLabel}</td>
+                <td>{(!isVolunteer && PUBLIC_STATUS_MEANING[status]) || STATUS_MEANING[status]}</td>
               </tr>
             ))}
           </tbody>
@@ -309,10 +314,12 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
             {STATUS_CONFIG.not_yet_dangerous.label}
             」を選び、連絡事項に理由を書く。無理に貼らないでください。
           </li>
-          <li>
-            貼る区画にほかのポスターがある →「{STATUS_CONFIG.error_wrong_poster.label}
-            」を選ぶ。そのポスターには触らない・はがさないでください。
-          </li>
+          {isVolunteer && (
+            <li>
+              貼る区画にほかのポスターがある →「{STATUS_CONFIG.error_wrong_poster.label}
+              」を選ぶ。そのポスターには触らない・はがさないでください。
+            </li>
+          )}
           <li>
             掲示場が見つからない・壊れている など →「{STATUS_CONFIG.other.label}
             」を選び、連絡事項に様子を書く。

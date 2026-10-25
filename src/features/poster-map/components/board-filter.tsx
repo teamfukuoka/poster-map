@@ -5,13 +5,19 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { BOARD_STATUSES, type BoardStatus, STATUS_CONFIG, type StatusGroup } from "../status";
+import {
+  BOARD_STATUSES,
+  type BoardStatus,
+  STATUS_CONFIG,
+  type StatusGroup,
+  statusLabels,
+} from "../status";
 import type { BoardFilterState } from "../use-board-filter";
 
 type Props = {
   filterState: BoardFilterState;
-  /** 「自分が更新したものだけ」はボランティアだけに出す */
-  canShowMine: boolean;
+  /** 参加中のボランティアか。「自分が更新したものだけ」と他候補の呼び方を変える */
+  isVolunteer: boolean;
   onToggleStatus: (status: BoardStatus) => void;
   onToggleShowOnlyMine: () => void;
   onSelectAll: () => void;
@@ -26,7 +32,7 @@ const GROUPS: { group: StatusGroup; title: string }[] = [
 
 export function BoardFilter({
   filterState,
-  canShowMine,
+  isVolunteer,
   onToggleStatus,
   onToggleShowOnlyMine,
   onSelectAll,
@@ -62,7 +68,7 @@ export function BoardFilter({
             </Button>
           </div>
 
-          {canShowMine && (
+          {isVolunteer && (
             <div className="mb-3 flex items-center gap-2 border-border border-b pb-3">
               <Checkbox
                 id="filter-mine"
@@ -96,7 +102,7 @@ export function BoardFilter({
                           className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: STATUS_CONFIG[status].color }}
                         />
-                        {STATUS_CONFIG[status].shortLabel}
+                        {statusLabels(status, isVolunteer).shortLabel}
                       </Label>
                     </div>
                   ))}

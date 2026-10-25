@@ -4,7 +4,8 @@ values ('local-dev', extensions.crypt('local-dev-code', extensions.gen_salt('bf'
 
 update private.site_settings
 set public_from = now() - interval '1 day',
-    public_until = now() + interval '30 days';
+    public_until = now() + interval '30 days',
+    force_hidden = false;
 
 insert into public.poster_boards (number, name, address, ward, lat, long, status) values
   ('春吉第一-1', '十八親和銀行ビル駐車場フェンス', '中央区西中洲6番27号', '中央区', 33.5920947, 130.4037078, 'done'),

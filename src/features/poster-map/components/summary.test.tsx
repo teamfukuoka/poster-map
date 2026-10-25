@@ -11,11 +11,17 @@ const boards = [
 ];
 
 test("SummaryBar は総数・完了・完了率・内訳を出す", () => {
-  render(<SummaryBar boards={boards} />);
+  render(<SummaryBar boards={boards} isVolunteer />);
   expect(screen.getByTestId("summary-total")).toHaveTextContent("4");
   expect(screen.getByTestId("summary-done")).toHaveTextContent("2");
   expect(screen.getByTestId("summary-percent")).toHaveTextContent("50%");
   expect(screen.getByText("他候補")).toHaveTextContent("他候補1");
+});
+
+test("SummaryBar は、一般の人には他候補を「要確認」と出す", () => {
+  render(<SummaryBar boards={boards} isVolunteer={false} />);
+  expect(screen.getByText("要確認")).toHaveTextContent("要確認1");
+  expect(screen.queryByText(/他候補/)).not.toBeInTheDocument();
 });
 
 test("SummaryBar は総数と完了を桁区切りで出す", () => {
@@ -23,7 +29,7 @@ test("SummaryBar は総数と完了を桁区切りで出す", () => {
     ...Array.from({ length: 1_200 }, () => ({ status: "done" as BoardStatus })),
     ...Array.from({ length: 444 }, () => ({ status: "not_yet" as BoardStatus })),
   ];
-  render(<SummaryBar boards={many} />);
+  render(<SummaryBar boards={many} isVolunteer={false} />);
   expect(screen.getByTestId("summary-total")).toHaveTextContent("1,644");
   expect(screen.getByTestId("summary-done")).toHaveTextContent("1,200");
 });

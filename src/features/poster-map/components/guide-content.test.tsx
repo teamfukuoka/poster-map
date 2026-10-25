@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { toUserMessage } from "../errors";
-import { PIE_ORDER, STATUS_CONFIG } from "../status";
+import { PIE_ORDER, statusLabels } from "../status";
 import { GuideContent } from "./guide-content";
 
 const MEDIA_LINE = /記者の方や、ほかの候補者の事務局の方などに声をかけられたら/;
@@ -45,11 +45,14 @@ test("問い合わせ先が未設定なら、参加中でも受け取った担�
   ).toBeInTheDocument();
 });
 
-test("ピンの色の表は、地図の状況の設定と同じ並び・表示名になる", () => {
-  render(<GuideContent isVolunteer={false} />);
+test.each([
+  false,
+  true,
+])("ピンの色の表は、地図と同じ並び・表示名になる（参加中: %s）", (isVolunteer) => {
+  render(<GuideContent isVolunteer={isVolunteer} />);
   const rows = within(sectionOf("地図の見方")).getAllByRole("row").slice(1);
   expect(rows.map((row) => within(row).getAllByRole("cell")[1].textContent)).toEqual(
-    PIE_ORDER.map((status) => STATUS_CONFIG[status].shortLabel),
+    PIE_ORDER.map((status) => statusLabels(status, isVolunteer).shortLabel),
   );
 });
 
@@ -80,4 +83,16 @@ test("予約の説明：ほかの人へのお知らせ・すぐ貼れるなら�
   expect(rows).toContainEqual(expect.stringMatching(/その場ですぐ貼れるとき.*完了だけ/));
   expect(within(section).getByText(/「ここには私が行きます」/)).toBeInTheDocument();
   expect(within(section).getByText(/予約は時間がたっても消えません/)).toBeInTheDocument();
+});
+
+test("参加していない人には、ガイドのどこにも「他候補」と出さない", () => {
+  const { container } = render(<GuideContent isVolunteer={false} />);
+  expect(container.textContent).not.toContain("他候補");
+  expect(container.textContent).not.toContain("ほかのポスター");
+  expect(container.textContent).toContain("要確認");
+});
+
+test("参加中の人には、他候補のポスターがあるときの報告のしかたを出す", () => {
+  render(<GuideContent isVolunteer />);
+  expect(screen.getByText(/貼る区画にほかのポスターがある/)).toBeInTheDocument();
 });

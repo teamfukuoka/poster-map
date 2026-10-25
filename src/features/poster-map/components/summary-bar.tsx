@@ -1,8 +1,13 @@
 // Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10.
 import { summarize } from "../stats";
-import { type BoardStatus, PIE_ORDER, STATUS_CONFIG } from "../status";
+import { type BoardStatus, PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
 
-export function SummaryBar({ boards }: { boards: readonly { status: BoardStatus }[] }) {
+type Props = {
+  boards: readonly { status: BoardStatus }[];
+  isVolunteer: boolean;
+};
+
+export function SummaryBar({ boards, isVolunteer }: Props) {
   const { total, counts, donePercent } = summarize(boards);
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg bg-card p-3 shadow-card">
@@ -35,7 +40,7 @@ export function SummaryBar({ boards }: { boards: readonly { status: BoardStatus 
               className="h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: STATUS_CONFIG[status].color }}
             />
-            {STATUS_CONFIG[status].shortLabel}
+            {statusLabels(status, isVolunteer).shortLabel}
             <span className="font-semibold">{counts[status]}</span>
           </span>
         ))}

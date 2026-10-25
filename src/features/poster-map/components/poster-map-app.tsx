@@ -187,14 +187,15 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
 
       {state.kind === "ok" && (
         <>
-          <SummaryBar boards={boards} />
+          <SummaryBar boards={boards} isVolunteer={isVolunteer} />
           <PosterMap
             boards={filter.filteredBoards}
             onBoardClick={handleBoardClick}
+            isVolunteer={isVolunteer}
             controls={
               <BoardFilter
                 filterState={filter.filterState}
-                canShowMine={isVolunteer}
+                isVolunteer={isVolunteer}
                 onToggleStatus={filter.toggleStatus}
                 onToggleShowOnlyMine={filter.toggleShowOnlyMine}
                 onSelectAll={filter.selectAll}

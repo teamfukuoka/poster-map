@@ -44,6 +44,18 @@ export const STATUS_CONFIG: Record<BoardStatus, StatusConfig> = {
   },
 };
 
+type StatusLabels = Pick<StatusConfig, "label" | "shortLabel">;
+
+/** 一般の人に出す呼び方。他候補のポスターがあることは、参加中のボランティアにだけ出す */
+const PUBLIC_LABELS: Partial<Record<BoardStatus, StatusLabels>> = {
+  error_wrong_poster: { label: "要確認", shortLabel: "要確認" },
+};
+
+export function statusLabels(status: BoardStatus, isVolunteer: boolean): StatusLabels {
+  const { label, shortLabel } = (!isVolunteer && PUBLIC_LABELS[status]) || STATUS_CONFIG[status];
+  return { label, shortLabel };
+}
+
 /** 報告ダイアログの選択肢の順 */
 export const STATUS_SELECT_ORDER: readonly BoardStatus[] = [
   "not_yet",

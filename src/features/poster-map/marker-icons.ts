@@ -1,7 +1,7 @@
 // Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10.
 import { escapeHtml } from "./html";
 import type { StatusCounts } from "./stats";
-import { type BoardStatus, PIE_ORDER, STATUS_CONFIG } from "./status";
+import { type BoardStatus, PIE_ORDER, STATUS_CONFIG, statusLabels } from "./status";
 import type { MapBoard } from "./types";
 
 export function markerIconHtml(status: BoardStatus): string {
@@ -57,10 +57,10 @@ export function clusterIconHtml(counts: StatusCounts): { html: string; size: num
   };
 }
 
-export function clusterTooltipHtml(counts: StatusCounts): string {
+export function clusterTooltipHtml(counts: StatusCounts, isVolunteer: boolean): string {
   const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const lines = PIE_ORDER.filter((status) => counts[status] > 0).map(
-    (status) => `${STATUS_CONFIG[status].shortLabel}: ${counts[status]}`,
+    (status) => `${statusLabels(status, isVolunteer).shortLabel}: ${counts[status]}`,
   );
   return [`掲示板数: ${total}`, ...lines].join("<br>");
 }

@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PIE_ORDER, STATUS_CONFIG } from "../status";
+import { PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
 
 type Props = {
   open: boolean;
@@ -35,7 +35,7 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
                   className="h-3 w-3 shrink-0 rounded-full"
                   style={{ backgroundColor: STATUS_CONFIG[status].color }}
                 />
-                {STATUS_CONFIG[status].shortLabel}
+                {statusLabels(status, isVolunteer).shortLabel}
               </li>
             ))}
           </ul>

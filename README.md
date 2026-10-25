@@ -27,7 +27,7 @@ pnpm dev
 
 ## 運用
 
-公開期間は DB の `private.site_settings` で管理します。緊急時の非表示:
+公開期間は DB の `private.site_settings` で管理します（2026-11-01 0:00〜11-14 23:58）。本番は公開停止（`force_hidden`）を ON で始め、立候補の届出の受理を確かめてから公開します。ローカルは `supabase/seed.sql` で公開中にしています。緊急時の非表示:
 
 ```sql
 update private.site_settings set force_hidden = true;

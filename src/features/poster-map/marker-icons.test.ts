@@ -47,8 +47,17 @@ test("クラスタが1種類なら単色、複数なら円グラフ", () => {
 });
 
 test("クラスタのツールチップは件数と短い表示名を並べる", () => {
-  expect(clusterTooltipHtml(counts({ not_yet: 1, done: 2 }))).toBe(
+  expect(clusterTooltipHtml(counts({ not_yet: 1, done: 2 }), false)).toBe(
     "掲示板数: 3<br>完了: 2<br>未貼付: 1",
+  );
+});
+
+test("クラスタのツールチップは、一般の人には他候補を「要確認」と出す", () => {
+  expect(clusterTooltipHtml(counts({ error_wrong_poster: 1 }), false)).toBe(
+    "掲示板数: 1<br>要確認: 1",
+  );
+  expect(clusterTooltipHtml(counts({ error_wrong_poster: 1 }), true)).toBe(
+    "掲示板数: 1<br>他候補: 1",
   );
 });
 

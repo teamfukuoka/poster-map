@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { STATUS_CONFIG } from "../status";
+import { statusLabels } from "../status";
 import type { MapBoard } from "../types";
 import { BoardInfo } from "./board-info";
 
@@ -28,7 +28,7 @@ export function InfoDialog({ board, canJoin, onJoin, onClose }: Props) {
         <DialogHeader>
           <DialogTitle>掲示板の情報</DialogTitle>
           <DialogDescription>
-            現在の状況：{board ? STATUS_CONFIG[board.status].label : ""}
+            現在の状況：{board ? statusLabels(board.status, false).label : ""}
           </DialogDescription>
         </DialogHeader>
         {board && <BoardInfo board={board} />}
