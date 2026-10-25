@@ -4,4 +4,5 @@
 update private.site_settings
 set public_from = '2026-11-01 00:00:00+09',
     public_until = '2026-11-14 23:58:00+09',
-    force_hidden = true;
+    force_hidden = true
+where id;
