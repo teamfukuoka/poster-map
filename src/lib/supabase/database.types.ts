@@ -155,6 +155,11 @@ export type Database = {
           ward: string
         }[]
       }
+      admin_reset_rehearsal: { Args: { p_confirm: string }; Returns: undefined }
+      admin_set_force_hidden: {
+        Args: { p_hidden: boolean }
+        Returns: undefined
+      }
       admin_site_state: {
         Args: never
         Returns: {

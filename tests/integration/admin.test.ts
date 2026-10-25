@@ -356,3 +356,135 @@ describe("最初の画面", () => {
     expect(data?.[0]).toMatchObject({ force_hidden: false, is_public: false });
   });
 });
+
+// ---- 公開の切り替え・リハーサルのまとめ戻し（管理者だけ） ------------------
+
+async function auditRows(action: string) {
+  return withPg(async (db) => {
+    const result = await db.query<{ actor_email: string; target: string | null }>(
+      "select actor_email, target from private.admin_audit_log where action = $1 order by id",
+      [action],
+    );
+    return result.rows;
+  });
+}
+
+describe("admin_set_force_hidden", () => {
+  test("operator は forbidden・変わらない", async () => {
+    const { client } = await signInStaff("operator");
+    const { error } = await client.rpc("admin_set_force_hidden", { p_hidden: true });
+    expect(error?.message).toBe("forbidden");
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(false);
+    expect(await auditRows("set_force_hidden")).toEqual([]);
+  });
+
+  test("一覧にない人は not_admin", async () => {
+    const { client } = await signInStaff(null);
+    const { error } = await client.rpc("admin_set_force_hidden", { p_hidden: true });
+    expect(error?.message).toBe("not_admin");
+  });
+
+  test("admin は止めて再開できる・記録が残る", async () => {
+    const { client, email } = await signInStaff("admin");
+    expect((await client.rpc("admin_set_force_hidden", { p_hidden: true })).error).toBeNull();
+    let state = (await client.rpc("admin_site_state")).data?.[0];
+    expect(state).toMatchObject({ force_hidden: true, is_public: false });
+    expect((await client.rpc("admin_set_force_hidden", { p_hidden: false })).error).toBeNull();
+    state = (await client.rpc("admin_site_state")).data?.[0];
+    expect(state).toMatchObject({ force_hidden: false, is_public: true });
+    expect(await auditRows("set_force_hidden")).toEqual([
+      { actor_email: email.toLowerCase(), target: "true" },
+      { actor_email: email.toLowerCase(), target: "false" },
+    ]);
+  });
+});
+
+describe("admin_reset_rehearsal", () => {
+  async function seedRehearsal() {
+    const id = await insertBoard("A-1", "done");
+    const other = await insertBoard("A-2", "reserved");
+    await insertHistory(id, { previous: "not_yet", next: "reserved" });
+    await insertHistory(id, { previous: "reserved", next: "done" });
+    return { id, other };
+  }
+
+  async function snapshot() {
+    return withPg(async (db) => {
+      const history = await db.query<{ n: string }>(
+        "select count(*) as n from public.poster_board_status_history",
+      );
+      const boards = await db.query<{ number: string; status: string }>(
+        "select number, status from public.poster_boards order by number",
+      );
+      return { history: Number(history.rows[0].n), boards: boards.rows };
+    });
+  }
+
+  test("operator は forbidden・履歴は残る", async () => {
+    const { client } = await signInStaff("operator");
+    await seedRehearsal();
+    const { error } = await client.rpc("admin_reset_rehearsal", { p_confirm: "リセット" });
+    expect(error?.message).toBe("forbidden");
+    expect((await snapshot()).history).toBe(2);
+    expect(await auditRows("reset_rehearsal")).toEqual([]);
+  });
+
+  test("確認の文字が違えば confirm_mismatch・何も変わらない", async () => {
+    const { client } = await signInStaff("admin");
+    await seedRehearsal();
+    for (const p_confirm of ["", "reset", "リセット "]) {
+      const { error } = await client.rpc("admin_reset_rehearsal", { p_confirm });
+      expect(error?.message).toBe("confirm_mismatch");
+    }
+    expect(await snapshot()).toEqual({
+      history: 2,
+      boards: [
+        { number: "A-1", status: "done" },
+        { number: "A-2", status: "reserved" },
+      ],
+    });
+    expect(await auditRows("reset_rehearsal")).toEqual([]);
+  });
+
+  test("締切の前なら履歴を消して全掲示場を not_yet に戻す", async () => {
+    const { client, email } = await signInStaff("admin");
+    await seedRehearsal();
+    const { error } = await client.rpc("admin_reset_rehearsal", { p_confirm: "リセット" });
+    expect(error).toBeNull();
+    expect(await snapshot()).toEqual({
+      history: 0,
+      boards: [
+        { number: "A-1", status: "not_yet" },
+        { number: "A-2", status: "not_yet" },
+      ],
+    });
+    expect(await auditRows("reset_rehearsal")).toEqual([
+      { actor_email: email.toLowerCase(), target: "2" },
+    ]);
+  });
+
+  test("締切を過ぎたら reset_closed・確認の文字が正しくても何も変わらない", async () => {
+    const { client } = await signInStaff("admin");
+    await seedRehearsal();
+    await setAdminSettings({ rehearsalResetUntil: "now() - interval '1 minute'" });
+    const { error } = await client.rpc("admin_reset_rehearsal", { p_confirm: "リセット" });
+    expect(error?.message).toBe("reset_closed");
+    expect((await snapshot()).history).toBe(2);
+    expect(await auditRows("reset_rehearsal")).toEqual([]);
+  });
+
+  test("締切を過ぎたら、確認の文字が違っても reset_closed（締切の判定が先）", async () => {
+    const { client } = await signInStaff("admin");
+    await setAdminSettings({ rehearsalResetUntil: "now() - interval '1 minute'" });
+    const { error } = await client.rpc("admin_reset_rehearsal", { p_confirm: "違う" });
+    expect(error?.message).toBe("reset_closed");
+  });
+
+  test("既定の締切は 2026-11-01 00:00 JST", async () => {
+    const { client } = await signInStaff("admin");
+    const state = (await client.rpc("admin_site_state")).data?.[0];
+    expect(new Date(state?.rehearsal_reset_until ?? "").toISOString()).toBe(
+      "2026-10-31T15:00:00.000Z",
+    );
+  });
+});

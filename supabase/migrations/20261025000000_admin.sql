@@ -324,3 +324,58 @@ grant execute on function
   public.admin_ward_progress(),
   public.admin_site_state()
   to authenticated;
+
+-- 公開の切り替え・リハーサルのまとめ戻し（管理者だけ） -------------------------
+
+-- 公開を止める／再開する。公開期間そのものは変えず、force_hidden だけを切り替える
+create function public.admin_set_force_hidden(p_hidden boolean)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor text;
+begin
+  v_actor := private.require_admin_role('admin');
+  update private.site_settings set force_hidden = p_hidden where id;
+  perform private.write_audit(v_actor, 'set_force_hidden', p_hidden::text);
+end;
+$$;
+
+-- リハーサルの記録をまとめて戻す。履歴をすべて消し、全掲示場を「まだ」に戻す。
+-- 締切（rehearsal_reset_until）を過ぎたら、確認の文字に関係なく reset_closed で断る（判定は確認より先）
+create function public.admin_reset_rehearsal(p_confirm text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor text;
+  v_deleted int;
+begin
+  v_actor := private.require_admin_role('admin');
+  if now() >= (select s.rehearsal_reset_until from private.admin_settings s) then
+    raise exception 'reset_closed';
+  end if;
+  if p_confirm is distinct from 'リセット' then
+    raise exception 'confirm_mismatch';
+  end if;
+  with d as (
+    delete from public.poster_board_status_history where true returning 1
+  )
+  select count(*)::int into v_deleted from d;
+  update public.poster_boards set status = 'not_yet', updated_at = now() where true;
+  perform private.write_audit(v_actor, 'reset_rehearsal', v_deleted::text);
+end;
+$$;
+
+revoke execute on function
+  public.admin_set_force_hidden(boolean),
+  public.admin_reset_rehearsal(text)
+  from public, anon, authenticated;
+grant execute on function
+  public.admin_set_force_hidden(boolean),
+  public.admin_reset_rehearsal(text)
+  to authenticated;
