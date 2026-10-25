@@ -371,6 +371,9 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
     { signature: "public.admin_site_state()", anon: false, authenticated: true },
     { signature: "public.admin_set_force_hidden(boolean)", anon: false, authenticated: true },
     { signature: "public.admin_reset_rehearsal(text)", anon: false, authenticated: true },
+    { signature: "public.admin_publish(text)", anon: false, authenticated: true },
+    { signature: "public.admin_revert_acceptance(text)", anon: false, authenticated: true },
+    { signature: "public.current_site_name()", anon: true, authenticated: true },
     { signature: "public.admin_list_invite_codes()", anon: false, authenticated: true },
     { signature: "public.admin_reveal_invite_code(uuid)", anon: false, authenticated: true },
     {

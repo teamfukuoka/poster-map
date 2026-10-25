@@ -127,7 +127,7 @@ export async function resetDatabase(): Promise<void> {
     );
     await db.query("delete from auth.users");
     await db.query(
-      "update private.site_settings set public_from = now() - interval '1 day', public_until = now() + interval '1 day', force_hidden = false",
+      "update private.site_settings set public_from = now() - interval '1 day', public_until = now() + interval '1 day', force_hidden = false, accepted_at = null",
     );
     await db.query(
       "insert into private.invite_codes (label, code_hash) values ('integration', extensions.crypt($1, extensions.gen_salt('bf')))",
@@ -149,6 +149,15 @@ export async function setPublicWindow(mode: PublicWindow): Promise<void> {
       "public_from = now() - interval '1 day', public_until = now() + interval '1 day', force_hidden = true",
   };
   await withPg((db) => db.query(`update private.site_settings set ${sql[mode]}`));
+}
+
+/** 受理済み（accepted_at が入った）状態にする。false なら受理前に戻す。force_hidden は変えない */
+export async function setAccepted(accepted: boolean): Promise<void> {
+  await withPg((db) =>
+    db.query(
+      `update private.site_settings set accepted_at = ${accepted ? "now()" : "null"} where id`,
+    ),
+  );
 }
 
 export async function insertBoard(

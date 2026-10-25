@@ -4,16 +4,18 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { Toaster } from "@/components/ui/sonner";
 import { readSiteConfig } from "@/lib/site-config";
+import { getSiteName } from "@/lib/site-name";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { siteName } = readSiteConfig();
+  const siteName = await getSiteName();
   // 検索エンジンには載せない（URL を知っている人に向けた道具）
   return { title: siteName, robots: { index: false, follow: false } };
 }
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
   const config = readSiteConfig();
+  const siteName = await getSiteName();
   return (
     <html lang="ja">
       <body className="min-h-dvh bg-background text-foreground">
@@ -22,7 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="mx-auto max-w-5xl px-4 py-3">
             <a href="/" className="inline-flex items-center gap-2 font-bold text-ink text-lg">
               <MapPin aria-hidden className="h-5 w-5 text-brand" strokeWidth={2.5} />
-              {config.siteName}
+              {siteName}
             </a>
           </div>
         </header>

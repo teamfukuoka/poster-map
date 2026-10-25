@@ -39,6 +39,8 @@ const site = (over: Partial<SiteState>): SiteState => ({
   public_from: "2026-10-01T00:00:00+09:00",
   public_until: "2026-12-01T00:00:00+09:00",
   rehearsal_reset_until: "2026-11-01T00:00:00+09:00",
+  accepted_at: null,
+  site_name: "福岡市ポスター掲示板マップ",
   ...over,
 });
 

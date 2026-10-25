@@ -142,6 +142,7 @@ export type Database = {
           volunteers: number
         }[]
       }
+      admin_publish: { Args: { p_confirm: string }; Returns: undefined }
       admin_recent_audit_log: {
         Args: never
         Returns: {
@@ -173,6 +174,10 @@ export type Database = {
       }
       admin_reset_rehearsal: { Args: { p_confirm: string }; Returns: undefined }
       admin_reveal_invite_code: { Args: { p_id: string }; Returns: string }
+      admin_revert_acceptance: {
+        Args: { p_confirm: string }
+        Returns: undefined
+      }
       admin_revoke_invite_code: {
         Args: { p_id: string; p_revoke_volunteers: boolean }
         Returns: number
@@ -184,11 +189,13 @@ export type Database = {
       admin_site_state: {
         Args: never
         Returns: {
+          accepted_at: string
           force_hidden: boolean
           is_public: boolean
           public_from: string
           public_until: string
           rehearsal_reset_until: string
+          site_name: string
         }[]
       }
       admin_stale_reservations: {
@@ -212,6 +219,7 @@ export type Database = {
         }[]
       }
       admin_whoami: { Args: never; Returns: string }
+      current_site_name: { Args: never; Returns: string }
       is_active_volunteer: { Args: never; Returns: boolean }
       is_public_window: { Args: never; Returns: boolean }
       register_volunteer: {

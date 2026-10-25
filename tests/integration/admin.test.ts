@@ -3,9 +3,11 @@ import {
   loadAuditLog,
   loadDashboard,
   loadInviteCodes,
+  publishSite,
   registerInviteCode,
   resetRehearsal,
   revealInviteCode,
+  revertAcceptance,
   revokeInviteCode,
   setForceHidden,
 } from "@/features/admin/admin-service";
@@ -14,6 +16,7 @@ import {
   anonClient,
   insertBoard,
   resetDatabase,
+  setAccepted,
   setAdminSettings,
   setPublicWindow,
   signInAnon,
@@ -397,8 +400,9 @@ describe("admin_set_force_hidden", () => {
     expect(error?.message).toBe("not_admin");
   });
 
-  test("admin は止めて再開できる・記録が残る", async () => {
+  test("admin は止めて再開できる・記録が残る（受理後）", async () => {
     const { client, email } = await signInStaff("admin");
+    await setAccepted(true);
     expect((await client.rpc("admin_set_force_hidden", { p_hidden: true })).error).toBeNull();
     let state = (await client.rpc("admin_site_state")).data?.[0];
     expect(state).toMatchObject({ force_hidden: true, is_public: false });
@@ -409,6 +413,227 @@ describe("admin_set_force_hidden", () => {
       { actor_email: email.toLowerCase(), target: "true" },
       { actor_email: email.toLowerCase(), target: "false" },
     ]);
+  });
+});
+
+const NAME_BEFORE = "福岡市ポスター掲示板マップ";
+const NAME_AFTER = "佐々木あやの ポスター掲示板マップ";
+
+async function siteName(): Promise<unknown> {
+  return (await anonClient().rpc("current_site_name")).data;
+}
+
+async function acceptedAt(): Promise<string | null> {
+  return withPg(async (db) => {
+    const result = await db.query<{ accepted_at: string | null }>(
+      "select accepted_at::text as accepted_at from private.site_settings where id",
+    );
+    return result.rows[0].accepted_at;
+  });
+}
+
+describe("current_site_name", () => {
+  test("受理前は受理前の名前・受理後は受理後の名前（anon で読める）", async () => {
+    expect(await siteName()).toBe(NAME_BEFORE);
+    await setAccepted(true);
+    expect(await siteName()).toBe(NAME_AFTER);
+    await setAccepted(false);
+    expect(await siteName()).toBe(NAME_BEFORE);
+  });
+
+  test("設定の行がなければ受理前の名前", async () => {
+    await withPg(async (db) => {
+      await db.query("begin");
+      try {
+        await db.query("delete from private.site_settings where true");
+        const result = await db.query<{ name: string }>(
+          "select public.current_site_name() as name",
+        );
+        expect(result.rows[0].name).toBe(NAME_BEFORE);
+      } finally {
+        await db.query("rollback");
+      }
+    });
+  });
+
+  test("止めていても名前は受理の状態だけで決まる", async () => {
+    await setPublicWindow("hidden");
+    expect(await siteName()).toBe(NAME_BEFORE);
+    await setAccepted(true);
+    expect(await siteName()).toBe(NAME_AFTER);
+  });
+
+  test("admin_site_state は accepted_at と今の名前も返す", async () => {
+    const { client } = await signInStaff("operator");
+    let state = (await client.rpc("admin_site_state")).data?.[0];
+    expect(state).toMatchObject({ accepted_at: null, site_name: NAME_BEFORE });
+    await setAccepted(true);
+    state = (await client.rpc("admin_site_state")).data?.[0];
+    expect(state?.accepted_at).toBeTruthy();
+    expect(state?.site_name).toBe(NAME_AFTER);
+  });
+});
+
+describe("admin_publish", () => {
+  test("operator は forbidden・一覧にない人は not_admin・変わらない", async () => {
+    await setPublicWindow("hidden");
+    const { client: operator } = await signInStaff("operator");
+    const { client: outsider } = await signInStaff(null);
+    expect((await operator.rpc("admin_publish", { p_confirm: "公開する" })).error?.message).toBe(
+      "forbidden",
+    );
+    expect((await outsider.rpc("admin_publish", { p_confirm: "公開する" })).error?.message).toBe(
+      "not_admin",
+    );
+    expect(await acceptedAt()).toBeNull();
+    expect(await auditRows("publish")).toEqual([]);
+  });
+
+  test("一般の参加者（ボランティア）は not_admin", async () => {
+    const { client } = await signInVolunteer("a");
+    const { error } = await client.rpc("admin_publish", { p_confirm: "公開する" });
+    expect(error?.message).toBe("not_admin");
+  });
+
+  test("確認の文字が違えば confirm_mismatch・何も変わらない", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("hidden");
+    for (const p_confirm of ["", "公開", "公開する ", "publish"]) {
+      const { error } = await client.rpc("admin_publish", { p_confirm });
+      expect(error?.message).toBe("confirm_mismatch");
+    }
+    expect(await acceptedAt()).toBeNull();
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(true);
+    expect(await auditRows("publish")).toEqual([]);
+  });
+
+  test("公開期間の始まりより前は before_public_from・何も変わらない", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("before");
+    await withPg((db) => db.query("update private.site_settings set force_hidden = true where id"));
+    const { error } = await client.rpc("admin_publish", { p_confirm: "公開する" });
+    expect(error?.message).toBe("before_public_from");
+    expect(await acceptedAt()).toBeNull();
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(true);
+    expect(await siteName()).toBe(NAME_BEFORE);
+    expect(await auditRows("publish")).toEqual([]);
+  });
+
+  test("確認の文字の判定が先（期間の前でも confirm_mismatch）", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("before");
+    const { error } = await client.rpc("admin_publish", { p_confirm: "違う" });
+    expect(error?.message).toBe("confirm_mismatch");
+  });
+
+  test("期間内なら受理後の名前になり、公開され、記録が残る", async () => {
+    const { client, email } = await signInStaff("admin");
+    await setPublicWindow("hidden");
+    expect(await siteName()).toBe(NAME_BEFORE);
+    const { error } = await client.rpc("admin_publish", { p_confirm: "公開する" });
+    expect(error).toBeNull();
+    expect(await acceptedAt()).not.toBeNull();
+    expect(await siteName()).toBe(NAME_AFTER);
+    expect((await client.rpc("admin_site_state")).data?.[0]).toMatchObject({
+      force_hidden: false,
+      is_public: true,
+      site_name: NAME_AFTER,
+    });
+    expect(await auditRows("publish")).toEqual([
+      { actor_email: email.toLowerCase(), target: NAME_AFTER },
+    ]);
+  });
+
+  test("もう一度押しても、最初の受理の日時は変わらない", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("hidden");
+    await client.rpc("admin_publish", { p_confirm: "公開する" });
+    const first = await acceptedAt();
+    await client.rpc("admin_set_force_hidden", { p_hidden: true });
+    expect((await client.rpc("admin_publish", { p_confirm: "公開する" })).error).toBeNull();
+    expect(await acceptedAt()).toBe(first);
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(false);
+  });
+});
+
+describe("admin_set_force_hidden と受理", () => {
+  test("受理前に再開（false）すると not_accepted・変わらない・記録なし", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("hidden");
+    const { error } = await client.rpc("admin_set_force_hidden", { p_hidden: false });
+    expect(error?.message).toBe("not_accepted");
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(true);
+    expect(await auditRows("set_force_hidden")).toEqual([]);
+  });
+
+  test("受理前でも止める（true）ことはできる", async () => {
+    const { client } = await signInStaff("admin");
+    expect((await client.rpc("admin_set_force_hidden", { p_hidden: true })).error).toBeNull();
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(true);
+  });
+
+  test("受理後は止めて再開しても、名前は受理後のまま", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("hidden");
+    await client.rpc("admin_publish", { p_confirm: "公開する" });
+    expect((await client.rpc("admin_set_force_hidden", { p_hidden: true })).error).toBeNull();
+    expect(await siteName()).toBe(NAME_AFTER);
+    expect((await client.rpc("admin_set_force_hidden", { p_hidden: false })).error).toBeNull();
+    expect(await siteName()).toBe(NAME_AFTER);
+    expect((await client.rpc("admin_site_state")).data?.[0]).toMatchObject({ force_hidden: false });
+  });
+});
+
+describe("admin_revert_acceptance", () => {
+  async function accepted() {
+    await setPublicWindow("open");
+    await setAccepted(true);
+  }
+
+  test("operator は forbidden・一覧にない人は not_admin・変わらない", async () => {
+    await accepted();
+    const { client: operator } = await signInStaff("operator");
+    const { client: outsider } = await signInStaff(null);
+    expect(
+      (await operator.rpc("admin_revert_acceptance", { p_confirm: "受理前に戻す" })).error?.message,
+    ).toBe("forbidden");
+    expect(
+      (await outsider.rpc("admin_revert_acceptance", { p_confirm: "受理前に戻す" })).error?.message,
+    ).toBe("not_admin");
+    expect(await siteName()).toBe(NAME_AFTER);
+    expect(await auditRows("revert_acceptance")).toEqual([]);
+  });
+
+  test("確認の文字が違えば confirm_mismatch・何も変わらない", async () => {
+    await accepted();
+    const { client } = await signInStaff("admin");
+    for (const p_confirm of ["", "受理前に戻す ", "リセット"]) {
+      const { error } = await client.rpc("admin_revert_acceptance", { p_confirm });
+      expect(error?.message).toBe("confirm_mismatch");
+    }
+    expect(await siteName()).toBe(NAME_AFTER);
+    expect((await client.rpc("admin_site_state")).data?.[0].force_hidden).toBe(false);
+  });
+
+  test("名前を受理前に戻し、止める。記録には対象を残さない", async () => {
+    await accepted();
+    const { client, email } = await signInStaff("admin");
+    const { error } = await client.rpc("admin_revert_acceptance", { p_confirm: "受理前に戻す" });
+    expect(error).toBeNull();
+    expect(await siteName()).toBe(NAME_BEFORE);
+    expect(await acceptedAt()).toBeNull();
+    expect((await client.rpc("admin_site_state")).data?.[0]).toMatchObject({
+      force_hidden: true,
+      is_public: false,
+      accepted_at: null,
+    });
+    expect(await auditRows("revert_acceptance")).toEqual([
+      { actor_email: email.toLowerCase(), target: null },
+    ]);
+    // 戻した後は「公開する」からしか再開できない
+    expect((await client.rpc("admin_set_force_hidden", { p_hidden: false })).error?.message).toBe(
+      "not_accepted",
+    );
   });
 });
 
@@ -939,6 +1164,38 @@ describe("admin service", () => {
     expect(await revealInviteCode(admin, id as string)).toEqual({ ok: true, data: { code: null } });
   });
 
+  test("publishSite と revertAcceptance は文言にして返す", async () => {
+    const { client } = await signInStaff("admin");
+    await setPublicWindow("hidden");
+    expect(await publishSite(client, "ちがう")).toEqual({
+      ok: false,
+      error: "確認の文字が違います。画面に書かれた文字をそのまま入れてください。",
+    });
+    await setPublicWindow("before");
+    expect(await publishSite(client, "公開する")).toEqual({
+      ok: false,
+      error: "公開期間の始まり（11月1日0:00）より前は公開できません。",
+    });
+    await setPublicWindow("hidden");
+    expect(await setForceHidden(client, false)).toEqual({
+      ok: false,
+      error: "受理を確かめる前は、「公開する」から公開してください。",
+    });
+    expect(await publishSite(client, "公開する")).toEqual({ ok: true, data: null });
+    const published = await loadDashboard(client);
+    expect(published.ok && published.data.site).toMatchObject({
+      force_hidden: false,
+      site_name: NAME_AFTER,
+    });
+    expect(await revertAcceptance(client, "受理前に戻す")).toEqual({ ok: true, data: null });
+    const reverted = await loadDashboard(client);
+    expect(reverted.ok && reverted.data.site).toMatchObject({
+      force_hidden: true,
+      accepted_at: null,
+      site_name: NAME_BEFORE,
+    });
+  });
+
   test("setForceHidden と resetRehearsal", async () => {
     const { client } = await signInStaff("admin");
     expect(await setForceHidden(client, true)).toEqual({ ok: true, data: null });
@@ -946,7 +1203,7 @@ describe("admin service", () => {
     expect(dashboard.ok && dashboard.data.site.force_hidden).toBe(true);
     expect(await resetRehearsal(client, "ちがう")).toEqual({
       ok: false,
-      error: "確認の文字が違います。「リセット」と入れてください。",
+      error: "確認の文字が違います。画面に書かれた文字をそのまま入れてください。",
     });
     expect(await resetRehearsal(client, "リセット")).toEqual({ ok: true, data: null });
     await setAdminSettings({ rehearsalResetUntil: "now() - interval '1 minute'" });

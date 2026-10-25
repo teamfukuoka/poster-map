@@ -26,7 +26,6 @@ jobs:
         env:
           SUPABASE_URL: http://127.0.0.1:54321
           SUPABASE_ANON_KEY: ci-dummy
-          SITE_NAME: ci
           OPERATOR_NAME: ci
           CONTACT: ci@example.com
           SOURCE_URL: https://example.com/source

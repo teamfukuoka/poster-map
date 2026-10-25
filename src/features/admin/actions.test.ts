@@ -1,22 +1,27 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
 import { createClient } from "@/lib/supabase/server";
 import {
+  publishSiteAction,
   registerInviteCodeAction,
   resetRehearsalAction,
   revealInviteCodeAction,
+  revertAcceptanceAction,
   revokeInviteCodeAction,
   setForceHiddenAction,
 } from "./actions";
 import * as service from "./admin-service";
 
-jest.mock("next/cache", () => ({ revalidatePath: jest.fn() }));
+jest.mock("next/cache", () => ({ revalidatePath: jest.fn(), updateTag: jest.fn() }));
+jest.mock("@/lib/site-name", () => ({ SITE_NAME_TAG: "site-name" }));
 jest.mock("@/lib/supabase/server", () => ({ createClient: jest.fn() }));
 jest.mock("./admin-service", () => ({
   revealInviteCode: jest.fn(),
   registerInviteCode: jest.fn(),
   revokeInviteCode: jest.fn(),
   setForceHidden: jest.fn(),
+  publishSite: jest.fn(),
+  revertAcceptance: jest.fn(),
   resetRehearsal: jest.fn(),
 }));
 
@@ -116,13 +121,15 @@ describe("setForceHiddenAction", () => {
     jest.mocked(service.setForceHidden).mockResolvedValue({ ok: true, data: null });
     await expect(setForceHiddenAction(false)).resolves.toEqual({ ok: true, data: null });
     expect(service.setForceHidden).toHaveBeenCalledWith(client, false);
-    expect(revalidatePath).toHaveBeenCalledWith("/admin", "layout");
+    expect(updateTag).toHaveBeenCalledWith("site-name");
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 
   test("失敗なら revalidate しない", async () => {
     jest.mocked(service.setForceHidden).mockResolvedValue(failure);
     await expect(setForceHiddenAction(true)).resolves.toEqual(failure);
     expect(revalidatePath).not.toHaveBeenCalled();
+    expect(updateTag).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -134,6 +141,32 @@ describe("setForceHiddenAction", () => {
   ])("boolean でなければ失敗を返す（%p）", async (v) => {
     await expect(call(setForceHiddenAction, v)).resolves.toEqual(invalid);
     expect(service.setForceHidden).not.toHaveBeenCalled();
+  });
+});
+
+describe.each([
+  ["publishSiteAction", publishSiteAction, service.publishSite, "公開する"],
+  ["revertAcceptanceAction", revertAcceptanceAction, service.revertAcceptance, "受理前に戻す"],
+] as const)("%s", (_name, action, serviceFn, word) => {
+  test("文字列なら service に渡し、成功したらサイト名の tag と公開の画面を revalidate する", async () => {
+    jest.mocked(serviceFn).mockResolvedValue({ ok: true, data: null });
+    await expect(action(word)).resolves.toEqual({ ok: true, data: null });
+    expect(serviceFn).toHaveBeenCalledWith(client, word);
+    expect(updateTag).toHaveBeenCalledWith("site-name");
+    expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
+  });
+
+  test("失敗なら revalidate しない", async () => {
+    jest.mocked(serviceFn).mockResolvedValue(failure);
+    await expect(action(word)).resolves.toEqual(failure);
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(updateTag).not.toHaveBeenCalled();
+  });
+
+  test.each([[1], [null], [undefined], [true]])("文字列でなければ失敗を返す（%p）", async (v) => {
+    await expect(call(action, v)).resolves.toEqual(invalid);
+    expect(serviceFn).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
   });
 });
 

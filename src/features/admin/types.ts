@@ -5,7 +5,10 @@ type Row<Name extends keyof Functions> = Functions[Name]["Returns"] extends (inf
 
 export type AdminRole = "admin" | "operator";
 
-export type SiteState = Row<"admin_site_state">;
+/** accepted_at: 受理前（「公開する」を押す前）は null */
+export type SiteState = Omit<Row<"admin_site_state">, "accepted_at"> & {
+  accepted_at: string | null;
+};
 export type WardProgress = Row<"admin_ward_progress">;
 
 // 生成された型は null にならないと見ているが、実際は null がありうる列を上書きする

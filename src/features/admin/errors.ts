@@ -10,7 +10,9 @@ const MESSAGES: Record<string, string> = {
   invite_code_not_found:
     "参加コードが見つからないか、すでに失効しています。画面を更新してください。",
   reset_closed: "11月1日0:00を過ぎたため、報告をまとめて戻すことはできません。",
-  confirm_mismatch: "確認の文字が違います。「リセット」と入れてください。",
+  confirm_mismatch: "確認の文字が違います。画面に書かれた文字をそのまま入れてください。",
+  not_accepted: "受理を確かめる前は、「公開する」から公開してください。",
+  before_public_from: "公開期間の始まり（11月1日0:00）より前は公開できません。",
 };
 
 /** 管理画面の RPC の例外を、画面に出す文言にする */

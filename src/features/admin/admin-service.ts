@@ -98,6 +98,23 @@ export async function setForceHidden(client: Client, hidden: boolean): Promise<A
   return { ok: true, data: null };
 }
 
+/** 受理を確かめたうえで公開し、サイト名を受理後の名前にする（確認の文字は「公開する」） */
+export async function publishSite(client: Client, confirm: string): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_publish", { p_confirm: confirm });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
+/** 押し間違いの戻し。サイト名を受理前に戻して止める（確認の文字は「受理前に戻す」） */
+export async function revertAcceptance(
+  client: Client,
+  confirm: string,
+): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_revert_acceptance", { p_confirm: confirm });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
 export async function resetRehearsal(client: Client, confirm: string): Promise<ActionResult<null>> {
   const { error } = await client.rpc("admin_reset_rehearsal", { p_confirm: confirm });
   if (error) return failure(error);
