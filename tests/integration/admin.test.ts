@@ -1,4 +1,17 @@
 import {
+  getAdminRole,
+  loadAuditLog,
+  loadDashboard,
+  loadInviteCodes,
+  registerInviteCode,
+  resetRehearsal,
+  revealInviteCode,
+  revokeInviteCode,
+  setForceHidden,
+} from "@/features/admin/admin-service";
+import { joinAsVolunteer } from "@/features/poster-map/volunteer-service";
+import {
+  anonClient,
   insertBoard,
   resetDatabase,
   setAdminSettings,
@@ -793,5 +806,153 @@ describe("参加コード", () => {
       (await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: true })).error
         ?.message,
     ).toBe("invite_code_not_found");
+  });
+});
+
+// ---- service 経由（入力チェック・文言） ---------------------------------------
+
+describe("admin service", () => {
+  async function auditCount(): Promise<number> {
+    return withPg(async (db) =>
+      Number((await db.query("select count(*) as n from private.admin_audit_log")).rows[0].n),
+    );
+  }
+
+  test("getAdminRole は役割を返し、一覧にない人は null", async () => {
+    expect(await getAdminRole((await signInStaff("admin")).client)).toBe("admin");
+    expect(await getAdminRole((await signInStaff("operator")).client)).toBe("operator");
+    expect(await getAdminRole((await signInStaff(null)).client)).toBeNull();
+    expect(await getAdminRole(anonClient())).toBeNull();
+  });
+
+  test("loadDashboard は一覧にない人で not_admin の文言を返す", async () => {
+    const { client } = await signInStaff(null);
+    expect(await loadDashboard(client)).toEqual({
+      ok: false,
+      error: "このアカウントでは管理画面に入れません。管理者に一覧への追加を頼んでください。",
+    });
+  });
+
+  test("loadDashboard は運営に5つのまとまりを返す", async () => {
+    await insertBoard("A-1");
+    const { client } = await signInStaff("operator");
+    const result = await loadDashboard(client);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.site.is_public).toBe(true);
+    expect(result.data.wards).toEqual([{ ward: "中央区", total: 1, reserved: 0, done: 0 }]);
+    expect(result.data.stale).toEqual([]);
+    expect(result.data.dangerous).toEqual([]);
+    expect(result.data.reports).toEqual([]);
+  });
+
+  test("registerInviteCode は記号のないコード・空の名前を RPC の前に断る（RPC は呼ばれず、記録も増えない）", async () => {
+    const { client } = await signInStaff("admin");
+    const rpc = jest.spyOn(client, "rpc");
+    const before = await auditCount();
+    expect(await registerInviteCode(client, "東区", "abcdefgh2345")).toEqual({
+      ok: false,
+      error:
+        "参加コードは8〜64文字で、英字・数字・記号をそれぞれ1つ以上入れてください。空白は使えません。",
+    });
+    expect(await registerInviteCode(client, "  ", CODE)).toEqual({
+      ok: false,
+      error: "配布先の名前は1〜50文字で入れてください。",
+    });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(await auditCount()).toBe(before);
+    const rows = await withPg((db) =>
+      db.query("select 1 from private.invite_codes where label = '東区'"),
+    );
+    expect(rows.rowCount).toBe(0);
+  });
+
+  test("全角で渡したコードが半角で登録され、半角でも全角でも参加できる", async () => {
+    const { client: admin } = await signInStaff("admin");
+    expect(await registerInviteCode(admin, "　東区\n", "　ｔｅｓｔ－ｃｏｄｅ－２３４５\n")).toEqual(
+      {
+        ok: true,
+        data: null,
+      },
+    );
+    const plain = await withPg((db) =>
+      db.query<{ code_plain: string }>(
+        "select code_plain from private.invite_codes where label = '東区'",
+      ),
+    );
+    expect(plain.rows[0].code_plain).toBe("test-code-2345");
+    expect(await joinAsVolunteer(anonClient(), "test-code-2345", "はなこ")).toEqual({
+      ok: true,
+      data: { displayName: "はなこ" },
+    });
+    expect(await joinAsVolunteer(anonClient(), "ｔｅｓｔ－ｃｏｄｅ－２３４５ ", "じろう")).toEqual({
+      ok: true,
+      data: { displayName: "じろう" },
+    });
+  });
+
+  test("DB の例外は文言になる（重複・見つからない・forbidden）", async () => {
+    const { client: admin } = await signInStaff("admin");
+    expect((await registerInviteCode(admin, "A", CODE)).ok).toBe(true);
+    expect(await registerInviteCode(admin, "B", CODE)).toEqual({
+      ok: false,
+      error: "同じ参加コードがすでに登録されています。別のコードにしてください。",
+    });
+    expect(await revokeInviteCode(admin, crypto.randomUUID(), false)).toEqual({
+      ok: false,
+      error: "参加コードが見つからないか、すでに失効しています。画面を更新してください。",
+    });
+    const { client: operator } = await signInStaff("operator");
+    expect(await registerInviteCode(operator, "C", CODE_B)).toEqual({
+      ok: false,
+      error: "この操作は管理者だけができます。",
+    });
+  });
+
+  test("表示・失効・一覧・記録", async () => {
+    const { client: admin } = await signInStaff("admin");
+    await registerInviteCode(admin, "南区", CODE);
+    const list = await loadInviteCodes(admin);
+    expect(list.ok).toBe(true);
+    if (!list.ok) return;
+    const row = list.data.find((r) => r.label === "南区");
+    expect(row).toMatchObject({ has_code: true, revoked_at: null });
+    const id = row?.id as string;
+    expect(await revealInviteCode(admin, id)).toEqual({ ok: true, data: { code: CODE } });
+    await joinAsVolunteer(anonClient(), CODE, "はなこ");
+    expect(await revokeInviteCode(admin, id, true)).toEqual({
+      ok: true,
+      data: { revokedVolunteers: 1 },
+    });
+    const audit = await loadAuditLog(admin);
+    expect(audit.ok && audit.data.map((r) => r.action)).toEqual([
+      "revoke_invite_code",
+      "reveal_invite_code",
+      "register_invite_code",
+    ]);
+  });
+
+  test("平文のない以前のコードの表示は code: null", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const list = await loadInviteCodes(admin);
+    const id = list.ok ? list.data.find((r) => r.label === "integration")?.id : undefined;
+    expect(await revealInviteCode(admin, id as string)).toEqual({ ok: true, data: { code: null } });
+  });
+
+  test("setForceHidden と resetRehearsal", async () => {
+    const { client } = await signInStaff("admin");
+    expect(await setForceHidden(client, true)).toEqual({ ok: true, data: null });
+    const dashboard = await loadDashboard(client);
+    expect(dashboard.ok && dashboard.data.site.force_hidden).toBe(true);
+    expect(await resetRehearsal(client, "ちがう")).toEqual({
+      ok: false,
+      error: "確認の文字が違います。「リセット」と入れてください。",
+    });
+    expect(await resetRehearsal(client, "リセット")).toEqual({ ok: true, data: null });
+    await setAdminSettings({ rehearsalResetUntil: "now() - interval '1 minute'" });
+    expect(await resetRehearsal(client, "リセット")).toEqual({
+      ok: false,
+      error: "11月1日0:00を過ぎたため、報告をまとめて戻すことはできません。",
+    });
   });
 });
