@@ -32,3 +32,5 @@ pnpm dev
 ```sql
 update private.site_settings set force_hidden = true;
 ```
+
+DB の migration は GitHub Actions（`.github/workflows/migrate.yml`）が流します。`develop` に push すると確認用（staging）の Supabase に、`main` への PR は承認のあと本番の Supabase に流れます。本番は PR をマージする前に流します（DB が先、アプリが後）。migration は足すだけにし、すでにあるファイルは書き換えません。Auth の設定・掲示場の取り込み・参加コードは CI では扱いません。
