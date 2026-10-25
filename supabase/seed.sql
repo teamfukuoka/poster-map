@@ -1,6 +1,6 @@
 -- ローカル開発専用。クラウドには適用しない（supabase db push は seed を流さない）。
-insert into private.invite_codes (label, code_hash)
-values ('local-dev', extensions.crypt('local-dev-code', extensions.gen_salt('bf')));
+insert into private.invite_codes (label, code_hash, code_plain)
+values ('local-dev', extensions.crypt('local-dev-code', extensions.gen_salt('bf')), 'local-dev-code');
 
 update private.site_settings
 set public_from = now() - interval '1 day',

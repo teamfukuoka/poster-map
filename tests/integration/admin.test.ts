@@ -494,3 +494,304 @@ describe("admin_reset_rehearsal", () => {
     );
   });
 });
+
+// ---- 参加コードの登録・表示・失効・人数 --------------------------------------
+
+const CODE = "test-code-2345"; // 英字・数字・記号入り（テスト専用の値）
+const CODE_B = "other-Code-6789";
+
+async function joinWith(code: string, name = "a") {
+  const v = await signInAnon();
+  const result = await v.client.rpc("register_volunteer", { p_code: code, p_display_name: name });
+  return { ...v, result };
+}
+
+async function inviteCodeId(label: string): Promise<string> {
+  return withPg(async (db) => {
+    const r = await db.query<{ id: string }>(
+      "select id from private.invite_codes where label = $1 order by created_at desc limit 1",
+      [label],
+    );
+    return r.rows[0].id;
+  });
+}
+
+describe("参加コード", () => {
+  test("operator は登録・失効が forbidden・一覧と表示はできる", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "東区", p_code: CODE }))
+      .data as string;
+    const { client } = await signInStaff("operator");
+    expect(
+      (await client.rpc("admin_register_invite_code", { p_label: "x", p_code: CODE_B })).error
+        ?.message,
+    ).toBe("forbidden");
+    expect(
+      (await client.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: false })).error
+        ?.message,
+    ).toBe("forbidden");
+    expect((await client.rpc("admin_list_invite_codes")).error).toBeNull();
+    expect((await client.rpc("admin_reveal_invite_code", { p_id: id })).data).toBe(CODE);
+  });
+
+  test("一覧にない人は not_admin", async () => {
+    const { client } = await signInStaff(null);
+    expect((await client.rpc("admin_list_invite_codes")).error?.message).toBe("not_admin");
+    expect(
+      (await client.rpc("admin_reveal_invite_code", { p_id: crypto.randomUUID() })).error?.message,
+    ).toBe("not_admin");
+    expect(
+      (await client.rpc("admin_register_invite_code", { p_label: "x", p_code: CODE })).error
+        ?.message,
+    ).toBe("not_admin");
+    expect(
+      (
+        await client.rpc("admin_revoke_invite_code", {
+          p_id: crypto.randomUUID(),
+          p_revoke_volunteers: false,
+        })
+      ).error?.message,
+    ).toBe("not_admin");
+  });
+
+  test("登録したコードで参加できる・code_plain に入り audit には残らない", async () => {
+    const { client: admin, email } = await signInStaff("admin");
+    const { error } = await admin.rpc("admin_register_invite_code", {
+      p_label: "東区リーダー配布",
+      p_code: CODE,
+    });
+    expect(error).toBeNull();
+    expect((await joinWith(CODE)).result.data?.error).toBeFalsy();
+    const plain = await withPg((db) =>
+      db.query<{ code_plain: string }>(
+        "select code_plain from private.invite_codes where label = '東区リーダー配布'",
+      ),
+    );
+    expect(plain.rows[0].code_plain).toBe(CODE);
+    const audit = await withPg((db) =>
+      db.query<{ j: string }>("select row_to_json(a)::text as j from private.admin_audit_log a"),
+    );
+    expect(audit.rows.map((r) => r.j).join()).not.toContain(CODE);
+    expect(await auditRows("register_invite_code")).toEqual([
+      { actor_email: email.toLowerCase(), target: "東区リーダー配布" },
+    ]);
+  });
+
+  test("表示で登録した値が返り、記録に reveal_invite_code と label が残る（コードは残らない）", async () => {
+    const { client: admin, email } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "南区", p_code: CODE }))
+      .data as string;
+    const { data, error } = await admin.rpc("admin_reveal_invite_code", { p_id: id });
+    expect(error).toBeNull();
+    expect(data).toBe(CODE);
+    expect(await auditRows("reveal_invite_code")).toEqual([
+      { actor_email: email.toLowerCase(), target: "南区" },
+    ]);
+    const audit = await withPg((db) =>
+      db.query<{ j: string }>("select row_to_json(a)::text as j from private.admin_audit_log a"),
+    );
+    expect(audit.rows.map((r) => r.j).join()).not.toContain(CODE);
+  });
+
+  test("表示は存在しない id なら invite_code_not_found・失効済みも返す", async () => {
+    const { client: admin } = await signInStaff("admin");
+    expect(
+      (await admin.rpc("admin_reveal_invite_code", { p_id: crypto.randomUUID() })).error?.message,
+    ).toBe("invite_code_not_found");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "南区", p_code: CODE }))
+      .data as string;
+    await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: false });
+    expect((await admin.rpc("admin_reveal_invite_code", { p_id: id })).data).toBe(CODE);
+  });
+
+  test("平文のない以前のコード（seed の local-dev-code の code_plain を null にした行）は has_code=false・表示は null", async () => {
+    const { client: admin } = await signInStaff("admin");
+    await withPg((db) =>
+      db.query(
+        "insert into private.invite_codes (label, code_hash, code_plain) values ('local-dev', extensions.crypt('local-dev-code', extensions.gen_salt('bf')), 'local-dev-code')",
+      ),
+    );
+    await withPg((db) =>
+      db.query("update private.invite_codes set code_plain = null where label = 'local-dev'"),
+    );
+    const { data } = await admin.rpc("admin_list_invite_codes");
+    const legacy = data?.find((r) => r.label === "local-dev");
+    expect(legacy?.has_code).toBe(false);
+    const id = await inviteCodeId("local-dev");
+    const revealed = await admin.rpc("admin_reveal_invite_code", { p_id: id });
+    expect(revealed.error).toBeNull();
+    expect(revealed.data).toBeNull();
+  });
+
+  test("登録で前後の空白は落とす", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (
+      await admin.rpc("admin_register_invite_code", { p_label: "  西区\n", p_code: `  ${CODE}\n` })
+    ).data as string;
+    expect((await admin.rpc("admin_reveal_invite_code", { p_id: id })).data).toBe(CODE);
+    expect((await joinWith(CODE)).result.data?.error).toBeFalsy();
+    expect((await admin.rpc("admin_list_invite_codes")).data?.map((r) => r.label)).toContain(
+      "西区",
+    );
+  });
+
+  test("参加で前後の空白は落とす（RPC を直接呼んでも）", async () => {
+    const { client: admin } = await signInStaff("admin");
+    await admin.rpc("admin_register_invite_code", { p_label: "西区", p_code: CODE });
+    expect((await joinWith(`　${CODE}\t`)).result.data?.error).toBeFalsy();
+  });
+
+  test.each([
+    ["7文字", "ab-1234"],
+    ["記号なし", "abcdefgh2345"],
+    ["数字なし", "abcd-efgh"],
+    ["英字なし", "1234-5678"],
+    ["空白入り", "abcd 12-34"],
+    ["65文字", `a1-${"x".repeat(62)}`],
+  ])("%s は invalid_invite_code_format", async (_name, code) => {
+    const { client: admin } = await signInStaff("admin");
+    const { error } = await admin.rpc("admin_register_invite_code", { p_label: "x", p_code: code });
+    expect(error?.message).toBe("invalid_invite_code_format");
+  });
+
+  test("8文字・64文字ちょうどは登録できる", async () => {
+    const { client: admin } = await signInStaff("admin");
+    expect(
+      (await admin.rpc("admin_register_invite_code", { p_label: "a", p_code: "abcd-123" })).error,
+    ).toBeNull();
+    expect(
+      (
+        await admin.rpc("admin_register_invite_code", {
+          p_label: "b",
+          p_code: `a1-${"x".repeat(61)}`,
+        })
+      ).error,
+    ).toBeNull();
+  });
+
+  test.each([
+    ["空", "  "],
+    ["51文字", "あ".repeat(51)],
+  ])("label が %s なら invalid_label", async (_name, label) => {
+    const { client: admin } = await signInStaff("admin");
+    const { error } = await admin.rpc("admin_register_invite_code", {
+      p_label: label,
+      p_code: CODE,
+    });
+    expect(error?.message).toBe("invalid_label");
+  });
+
+  test("有効なコードと同じなら duplicate_invite_code・失効済みと同じなら登録できる", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    expect(
+      (await admin.rpc("admin_register_invite_code", { p_label: "B", p_code: CODE })).error
+        ?.message,
+    ).toBe("duplicate_invite_code");
+    // 平文のない以前のコードとの重複も、ハッシュで見つける
+    await withPg((db) =>
+      db.query(
+        "insert into private.invite_codes (label, code_hash) values ('legacy', extensions.crypt('legacy-code-99', extensions.gen_salt('bf')))",
+      ),
+    );
+    expect(
+      (await admin.rpc("admin_register_invite_code", { p_label: "D", p_code: "legacy-code-99" }))
+        .error?.message,
+    ).toBe("duplicate_invite_code");
+    await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: false });
+    expect(
+      (await admin.rpc("admin_register_invite_code", { p_label: "B", p_code: CODE })).error,
+    ).toBeNull();
+  });
+
+  test("大文字を含むコードも登録でき、大文字小文字を変えると参加できない", async () => {
+    const { client: admin } = await signInStaff("admin");
+    expect(
+      (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE_B })).error,
+    ).toBeNull();
+    expect((await joinWith(CODE_B.toLowerCase())).result.data?.error).toBe("invalid_invite_code");
+    expect((await joinWith(CODE_B)).result.data?.error).toBeFalsy();
+  });
+
+  test("一覧は label と人数だけで code_hash・code_plain を返さない・新しい順", async () => {
+    const { client: admin } = await signInStaff("admin");
+    await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE });
+    await admin.rpc("admin_register_invite_code", { p_label: "B", p_code: CODE_B });
+    const { data, error } = await admin.rpc("admin_list_invite_codes");
+    expect(error).toBeNull();
+    expect(Object.keys(data?.[0] ?? {}).sort()).toEqual([
+      "active_volunteers",
+      "created_at",
+      "has_code",
+      "id",
+      "label",
+      "revoked_at",
+      "volunteers",
+    ]);
+    expect(data?.map((r) => r.label)).toEqual(["B", "A", "integration"]);
+    expect(data?.find((r) => r.label === "A")?.has_code).toBe(true);
+    expect(data?.find((r) => r.label === "integration")?.has_code).toBe(false);
+  });
+
+  test("失効だけなら参加済みの人は使い続けられる・新しく参加できない", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    const member = await joinWith(CODE, "はなこ");
+    const boardId = await insertBoard("A-1");
+    const r = await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: false });
+    expect(r.data).toBe(0);
+    expect(
+      (
+        await member.client.rpc("update_board_status", {
+          p_board_id: boardId,
+          p_status: "reserved",
+        })
+      ).error,
+    ).toBeNull();
+    expect((await joinWith(CODE)).result.data?.error).toBe("invalid_invite_code");
+    const row = (await admin.rpc("admin_list_invite_codes")).data?.find((x) => x.id === id);
+    expect(row?.revoked_at).toBeTruthy();
+    expect(row).toMatchObject({ volunteers: 1, active_volunteers: 1 });
+  });
+
+  test("失効と一緒に止めると、そのコードの人だけ止まり人数を返す", async () => {
+    const { client: admin, email } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    const other = await signInVolunteer("てすと");
+    const m1 = await joinWith(CODE, "一人目");
+    const m2 = await joinWith(CODE, "二人目");
+    const r = await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: true });
+    expect(r.error).toBeNull();
+    expect(r.data).toBe(2);
+    expect((await m1.client.rpc("is_active_volunteer")).data).toBe(false);
+    expect((await m2.client.rpc("is_active_volunteer")).data).toBe(false);
+    expect((await other.client.rpc("is_active_volunteer")).data).toBe(true);
+    const row = (await admin.rpc("admin_list_invite_codes")).data?.find((x) => x.id === id);
+    expect(row).toMatchObject({ volunteers: 2, active_volunteers: 0 });
+    expect(await auditRows("revoke_invite_code")).toEqual([
+      { actor_email: email.toLowerCase(), target: "A（止めた人数: 2）" },
+    ]);
+  });
+
+  test("存在しない id・失効済みは invite_code_not_found", async () => {
+    const { client: admin } = await signInStaff("admin");
+    expect(
+      (
+        await admin.rpc("admin_revoke_invite_code", {
+          p_id: crypto.randomUUID(),
+          p_revoke_volunteers: false,
+        })
+      ).error?.message,
+    ).toBe("invite_code_not_found");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: false });
+    expect(
+      (await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: true })).error
+        ?.message,
+    ).toBe("invite_code_not_found");
+  });
+});

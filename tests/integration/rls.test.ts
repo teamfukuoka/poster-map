@@ -371,6 +371,18 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
     { signature: "public.admin_site_state()", anon: false, authenticated: true },
     { signature: "public.admin_set_force_hidden(boolean)", anon: false, authenticated: true },
     { signature: "public.admin_reset_rehearsal(text)", anon: false, authenticated: true },
+    { signature: "public.admin_list_invite_codes()", anon: false, authenticated: true },
+    { signature: "public.admin_reveal_invite_code(uuid)", anon: false, authenticated: true },
+    {
+      signature: "public.admin_register_invite_code(text, text)",
+      anon: false,
+      authenticated: true,
+    },
+    {
+      signature: "public.admin_revoke_invite_code(uuid, boolean)",
+      anon: false,
+      authenticated: true,
+    },
   ] as const;
 
   test("public スキーマの全関数について anon / authenticated / public の権限が意図どおり", async () => {

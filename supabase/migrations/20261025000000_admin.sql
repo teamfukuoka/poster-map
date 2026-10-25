@@ -385,3 +385,222 @@ grant execute on function
   public.admin_set_force_hidden(boolean),
   public.admin_reset_rehearsal(text)
   to authenticated;
+
+-- 参加コードの登録・表示・失効・人数 ------------------------------------------
+
+-- 運用のため、平文を private schema（API から見えない）に置き、管理画面で後から見られるようにする。
+-- null は、以前の方法（psql）で登録したコード。平文がないので表示できない
+alter table private.invite_codes add column code_plain text;
+
+-- 参加の照合で、コードの前後の空白（全角の空白・改行も）を落とす。ほかは元の migration のまま
+create or replace function public.register_volunteer(p_code text, p_display_name text)
+returns public.register_volunteer_result
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_uid uuid := (select auth.uid());
+  v_name text := private.trim_js(coalesce(p_display_name, ''));
+  v_code_id uuid;
+  v_row public.volunteers;
+  v_result public.register_volunteer_result;
+begin
+  if v_uid is null then
+    raise exception 'not_authenticated';
+  end if;
+
+  -- 同じユーザーの同時の呼び出しを順番に処理し、並列で上限をすり抜けられないようにする
+  perform pg_advisory_xact_lock(hashtextextended('register_volunteer:' || v_uid::text, 0));
+
+  if (
+    select count(*)
+    from private.invite_code_failures
+    where user_id = v_uid
+      and created_at > now() - interval '15 minutes'
+  ) >= 5 then
+    raise exception 'too_many_attempts';
+  end if;
+
+  if char_length(v_name) < 1 or char_length(v_name) > 20 then
+    raise exception 'invalid_display_name';
+  end if;
+
+  select id into v_code_id
+  from private.invite_codes
+  where revoked_at is null
+    and code_hash = extensions.crypt(private.trim_js(coalesce(p_code, '')), code_hash)
+  limit 1;
+
+  if v_code_id is null then
+    -- 窓の外の古い記録はここで消す
+    delete from private.invite_code_failures
+    where user_id = v_uid
+      and created_at <= now() - interval '15 minutes';
+    insert into private.invite_code_failures (user_id) values (v_uid);
+    v_result.error := 'invalid_invite_code';
+    return v_result;
+  end if;
+
+  if exists (
+    select 1 from public.volunteers
+    where user_id = v_uid and revoked_at is not null
+  ) then
+    raise exception 'volunteer_revoked';
+  end if;
+
+  insert into public.volunteers (user_id, display_name, invite_code_id)
+  values (v_uid, v_name, v_code_id)
+  on conflict (user_id) do update set display_name = excluded.display_name
+  returning * into v_row;
+
+  delete from private.invite_code_failures where user_id = v_uid;
+
+  v_result.display_name := v_row.display_name;
+  return v_result;
+end;
+$$;
+
+-- 参加コードごとの人数（運営も読める）。code_hash・code_plain は返さない
+create function public.admin_list_invite_codes()
+returns table (
+  id uuid,
+  label text,
+  created_at timestamptz,
+  revoked_at timestamptz,
+  has_code boolean,
+  volunteers int,
+  active_volunteers int
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_admin_role('operator');
+  return query
+  select c.id, c.label, c.created_at, c.revoked_at, c.code_plain is not null,
+         (count(v.user_id))::int,
+         (count(v.user_id) filter (where v.revoked_at is null))::int
+  from private.invite_codes c
+  left join public.volunteers v on v.invite_code_id = c.id
+  group by c.id
+  order by c.created_at desc, c.id;
+end;
+$$;
+
+-- 登録した値を見る（運営も）。押したときだけ取り、記録には label だけ残す。
+-- 失効済みも返す（もれたコードの確認に使う）。以前のコードは null
+create function public.admin_reveal_invite_code(p_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor text;
+  v_label text;
+  v_plain text;
+begin
+  v_actor := private.require_admin_role('operator');
+  select c.label, c.code_plain into v_label, v_plain
+  from private.invite_codes c
+  where c.id = p_id;
+  if not found then
+    raise exception 'invite_code_not_found';
+  end if;
+  perform private.write_audit(v_actor, 'reveal_invite_code', v_label);
+  return v_plain;
+end;
+$$;
+
+-- 管理者が作ったコードを、配布先の名前と一緒に登録する（管理画面ではコードを作らない）
+create function public.admin_register_invite_code(p_label text, p_code text)
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor text;
+  v_code text := private.trim_js(coalesce(p_code, ''));
+  v_label text := private.trim_js(coalesce(p_label, ''));
+  v_id uuid;
+begin
+  v_actor := private.require_admin_role('admin');
+  if char_length(v_code) not between 8 and 64
+     or v_code !~ '^[!-~]+$'
+     or v_code !~ '[A-Za-z]'
+     or v_code !~ '[0-9]'
+     or v_code !~ '[^A-Za-z0-9]' then
+    raise exception 'invalid_invite_code_format';
+  end if;
+  if char_length(v_label) not between 1 and 50 then
+    raise exception 'invalid_label';
+  end if;
+  -- 平文のない以前のコードもあるので、ハッシュでも照合する
+  if exists (
+    select 1
+    from private.invite_codes c
+    where c.revoked_at is null
+      and (c.code_plain = v_code or c.code_hash = extensions.crypt(v_code, c.code_hash))
+  ) then
+    raise exception 'duplicate_invite_code';
+  end if;
+  insert into private.invite_codes (label, code_hash, code_plain)
+  values (v_label, extensions.crypt(v_code, extensions.gen_salt('bf')), v_code)
+  returning id into v_id;
+  perform private.write_audit(v_actor, 'register_invite_code', v_label);
+  return v_id;
+end;
+$$;
+
+-- コードを失効させる。p_revoke_volunteers なら、そのコードで参加した人もまとめて止め、止めた人数を返す
+create function public.admin_revoke_invite_code(p_id uuid, p_revoke_volunteers boolean)
+returns int
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor text;
+  v_label text;
+  v_count int := 0;
+begin
+  v_actor := private.require_admin_role('admin');
+  update private.invite_codes
+  set revoked_at = now()
+  where id = p_id and revoked_at is null
+  returning label into v_label;
+  if not found then
+    raise exception 'invite_code_not_found';
+  end if;
+  if p_revoke_volunteers then
+    with r as (
+      update public.volunteers
+      set revoked_at = now()
+      where invite_code_id = p_id and revoked_at is null
+      returning 1
+    )
+    select count(*)::int into v_count from r;
+  end if;
+  perform private.write_audit(
+    v_actor, 'revoke_invite_code', v_label || '（止めた人数: ' || v_count || '）'
+  );
+  return v_count;
+end;
+$$;
+
+revoke execute on function
+  public.admin_list_invite_codes(),
+  public.admin_reveal_invite_code(uuid),
+  public.admin_register_invite_code(text, text),
+  public.admin_revoke_invite_code(uuid, boolean)
+  from public, anon, authenticated;
+grant execute on function
+  public.admin_list_invite_codes(),
+  public.admin_reveal_invite_code(uuid),
+  public.admin_register_invite_code(text, text),
+  public.admin_revoke_invite_code(uuid, boolean)
+  to authenticated;

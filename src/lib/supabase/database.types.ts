@@ -130,6 +130,18 @@ export type Database = {
           ward: string
         }[]
       }
+      admin_list_invite_codes: {
+        Args: never
+        Returns: {
+          active_volunteers: number
+          created_at: string
+          has_code: boolean
+          id: string
+          label: string
+          revoked_at: string
+          volunteers: number
+        }[]
+      }
       admin_recent_audit_log: {
         Args: never
         Returns: {
@@ -155,7 +167,16 @@ export type Database = {
           ward: string
         }[]
       }
+      admin_register_invite_code: {
+        Args: { p_code: string; p_label: string }
+        Returns: string
+      }
       admin_reset_rehearsal: { Args: { p_confirm: string }; Returns: undefined }
+      admin_reveal_invite_code: { Args: { p_id: string }; Returns: string }
+      admin_revoke_invite_code: {
+        Args: { p_id: string; p_revoke_volunteers: boolean }
+        Returns: number
+      }
       admin_set_force_hidden: {
         Args: { p_hidden: boolean }
         Returns: undefined
