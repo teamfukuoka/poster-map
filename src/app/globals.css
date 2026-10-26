@@ -68,9 +68,10 @@
   --card-foreground: #212121;
   --popover: #ffffff;
   --popover-foreground: #212121;
-  /* ターコイズの上の文字は黒（白は 2.6:1 で読みにくい） */
-  --primary: #00afcc;
-  --primary-foreground: #212121;
+  /* ボタンの地は濃いターコイズ（DESIGN.md の primary-dark）に白文字（6.3:1）。
+     #00afcc の地は白文字で 2.6:1・黒文字でも見づらいと指摘があった（10/27） */
+  --primary: #006a7c;
+  --primary-foreground: #ffffff;
   --secondary: #eaf8fa;
   --secondary-foreground: #006a7c;
   --muted: #f5f5f5;
@@ -89,8 +90,8 @@
   --radius: 0.625rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #212121;
-  --sidebar-primary: #00afcc;
-  --sidebar-primary-foreground: #212121;
+  --sidebar-primary: #006a7c;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #eaf8fa;
   --sidebar-accent-foreground: #212121;
   --sidebar-border: #ebebeb;
