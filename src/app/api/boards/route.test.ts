@@ -41,3 +41,41 @@ test.each([
   expect(createPublicClient).not.toHaveBeenCalled();
   expect(buildPublicBoardsResponse).not.toHaveBeenCalled();
 });
+
+describe("確認用（Preview）", () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    process.env = { ...saved };
+  });
+
+  function basic(userPass: string): string {
+    return `Basic ${Buffer.from(userPass, "utf8").toString("base64")}`;
+  }
+
+  beforeEach(() => {
+    process.env.VERCEL_ENV = "preview";
+    process.env.PREVIEW_BASIC_AUTH_USER = "staff";
+    process.env.PREVIEW_BASIC_AUTH_PASSWORD = "pass-1234!";
+    jest.mocked(buildPublicBoardsResponse).mockResolvedValue({
+      status: 200,
+      cacheControl: "public, max-age=0, s-maxage=30, stale-while-revalidate=30",
+      body: { boards: [] },
+    });
+  });
+
+  test("認証がなければ DB に触れずに 401", async () => {
+    const response = await GET(new Request("https://example.invalid/api/boards"));
+    expect(response.status).toBe(401);
+    expect(createPublicClient).not.toHaveBeenCalled();
+  });
+
+  test("認証済みなら中身を返し、CDN には載せない", async () => {
+    const response = await GET(
+      new Request("https://example.invalid/api/boards", {
+        headers: { authorization: basic("staff:pass-1234!") },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+});
