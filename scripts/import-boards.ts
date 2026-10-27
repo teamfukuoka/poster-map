@@ -1,16 +1,41 @@
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { parseArgs } from "node:util";
 import { Client } from "pg";
+import { type BoardArea, missingAreaNumbers, parseBoardAreas } from "./lib/board-areas";
 import { importBoards, PruneNotConfirmedError } from "./lib/import-boards";
-import { blockingProblems, normalizeBoards } from "./lib/normalize-boards";
+import { blockingProblems, type NormalizedBoard, normalizeBoards } from "./lib/normalize-boards";
 import { readCsvFiles } from "./lib/read-csv";
 
 const USAGE = [
-  "使い方: pnpm import:boards [--dry-run] [--prune [--confirm-prune=<件数>]] [--include-removed] <csv>...",
+  "使い方: pnpm import:boards [--dry-run] [--prune [--confirm-prune=<件数>]] [--include-removed] [--areas=<csv>] <csv>...",
   "  --dry-run: CSV を検査するだけで、DB には接続しない",
+  "  --areas: 掲示場ごとの校区・町名の CSV（省略したら、最初の CSV と同じフォルダの board-areas.csv）。表にない番号があれば中止する",
   "  --prune: CSV にない掲示板を DB から消す（予約・報告の履歴も消える）。",
   "    消える掲示板があるときは、まず --confirm-prune なしで実行すると、DB を変えずに消える番号と履歴の件数を表示する。",
   "    確かめたら、表示された件数を --confirm-prune=<件数> に付けて実行し直す。",
 ].join("\n");
+
+/** 校区・町名の表を読み、ファイルがない・問題がある・表にない番号があるときは中止（exit 1）する */
+function readAreas(path: string, boards: readonly NormalizedBoard[]): BoardArea[] {
+  if (!existsSync(path)) {
+    console.error(`中止: 校区・町名の表がありません: ${path}（--areas=<csv> で指定できます）`);
+    process.exit(1);
+  }
+  const { areas, problems } = parseBoardAreas(readCsvFiles([path]));
+  if (problems.length > 0) {
+    for (const problem of problems) {
+      console.error(`中止: ${problem}`);
+    }
+    process.exit(1);
+  }
+  const missing = missingAreaNumbers(boards, areas);
+  if (missing.length > 0) {
+    console.error(`中止: 校区・町名の表にない番号: ${missing.join(", ")}`);
+    process.exit(1);
+  }
+  return areas;
+}
 
 async function main() {
   const { values, positionals } = parseArgs({
@@ -20,6 +45,7 @@ async function main() {
       prune: { type: "boolean", default: false },
       "confirm-prune": { type: "string" },
       "include-removed": { type: "boolean", default: false },
+      areas: { type: "string" },
     },
   });
   if (positionals.length === 0) {
@@ -62,6 +88,10 @@ async function main() {
     }
     process.exit(1);
   }
+  const areas = readAreas(
+    values.areas ?? join(dirname(positionals[0]), "board-areas.csv"),
+    result.boards,
+  );
   if (values["dry-run"]) {
     console.log("--dry-run のため DB は変更していません");
     return;
@@ -77,6 +107,7 @@ async function main() {
     const summary = await importBoards(db, result.boards, {
       prune: values.prune,
       confirmPrune,
+      areas,
     });
     console.log(
       `追加 ${summary.inserted} / 更新 ${summary.updated} / 変更なし ${summary.unchanged} / 削除 ${summary.deleted}`,

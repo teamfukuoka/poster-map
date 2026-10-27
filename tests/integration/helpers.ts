@@ -174,6 +174,30 @@ export async function insertBoard(
   });
 }
 
+/** 掲示板の校区・町名（private.board_areas）を直接足す・書き換える（テスト専用） */
+export async function setBoardArea(
+  number: string,
+  area: {
+    school: string;
+    town: string;
+    chome?: string | null;
+    schoolSource?: "pdf" | "map";
+  },
+): Promise<void> {
+  await withPg((db) =>
+    db.query(
+      `insert into private.board_areas (number, school, school_source, town, chome)
+       values ($1, $2, $3, $4, $5)
+       on conflict (number) do update set
+         school = excluded.school,
+         school_source = excluded.school_source,
+         town = excluded.town,
+         chome = excluded.chome`,
+      [number, area.school, area.schoolSource ?? "pdf", area.town, area.chome ?? null],
+    ),
+  );
+}
+
 export async function revokeInviteCodes(): Promise<void> {
   await withPg((db) => db.query("update private.invite_codes set revoked_at = now()"));
 }

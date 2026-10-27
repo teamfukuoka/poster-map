@@ -1,4 +1,5 @@
 import type { Client } from "pg";
+import type { BoardArea } from "./board-areas";
 import type { NormalizedBoard } from "./normalize-boards";
 
 export type ImportSummary = {
@@ -30,13 +31,14 @@ export class PruneNotConfirmedError extends Error {
  * 掲示板を番号で upsert する。ステータスと履歴は保持する（名称・住所・区・座標だけを更新）。
  * 渡した掲示板が 0 件なら何もせず例外にする（空の CSV で全件を消さないため）。
  * prune: true なら、渡した一覧にない番号を削除する（その掲示板の履歴も消える）。
+ * areas を渡すと、取り込む番号の分だけ校区・町名（private.board_areas）も同じトランザクションで upsert する。
  * 消える掲示板があるときは、その件数と confirmPrune が一致するときだけ削除して commit する。
  * 一致しなければ rollback し、消える番号と履歴の件数を持つ PruneNotConfirmedError を投げる。
  */
 export async function importBoards(
   db: Client,
   boards: readonly NormalizedBoard[],
-  options: { prune?: boolean; confirmPrune?: number } = {},
+  options: { prune?: boolean; confirmPrune?: number; areas?: readonly BoardArea[] } = {},
 ): Promise<ImportSummary> {
   if (boards.length === 0) {
     throw new Error("取り込む掲示板が 0 件です。CSV を確かめてください（DB は変更していません）");
@@ -67,6 +69,29 @@ export async function importBoards(
     );
     const inserted = upserted.rows.filter((row) => row.inserted).length;
     const updated = upserted.rows.length - inserted;
+
+    if (options.areas) {
+      const numbers = new Set(boards.map((b) => b.number));
+      const areas = options.areas.filter((area) => numbers.has(area.number));
+      await db.query(
+        `insert into private.board_areas (number, school, school_source, town, chome)
+         select * from unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[])
+         on conflict (number) do update set
+           school = excluded.school,
+           school_source = excluded.school_source,
+           town = excluded.town,
+           chome = excluded.chome
+         where (board_areas.school, board_areas.school_source, board_areas.town, board_areas.chome)
+           is distinct from (excluded.school, excluded.school_source, excluded.town, excluded.chome)`,
+        [
+          areas.map((a) => a.number),
+          areas.map((a) => a.school),
+          areas.map((a) => a.schoolSource),
+          areas.map((a) => a.town),
+          areas.map((a) => a.chome),
+        ],
+      );
+    }
 
     let deleted = 0;
     if (options.prune) {

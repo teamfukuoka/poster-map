@@ -1,6 +1,8 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import type { Client } from "pg";
 import { fetchAllBoards } from "@/features/poster-map/boards-query";
+import type { BoardArea } from "../../scripts/lib/board-areas";
 import { importBoards, PruneNotConfirmedError } from "../../scripts/lib/import-boards";
 import { normalizeBoards } from "../../scripts/lib/normalize-boards";
 import { readCsvFiles } from "../../scripts/lib/read-csv";
@@ -13,6 +15,14 @@ const board = (number: string, name = `掲示板${number}`) => ({
   ward: "中央区",
   lat: 33.59,
   long: 130.4,
+});
+
+const area = (number: string, school = "天神小"): BoardArea => ({
+  number,
+  school,
+  schoolSource: "pdf",
+  town: "天神",
+  chome: "1",
 });
 
 beforeEach(async () => {
@@ -155,6 +165,74 @@ describe("--prune の安全装置", () => {
           prune: true,
         }),
       ).toEqual({ inserted: 1, updated: 0, unchanged: 3, deleted: 0 });
+    });
+  });
+});
+
+describe("校区・町名の表（private.board_areas）", () => {
+  const readAreas = (db: Client) =>
+    db.query(
+      "select number, school, school_source, town, chome from private.board_areas order by number",
+    );
+
+  test("areas を渡すと同じトランザクションで board_areas を書く", async () => {
+    await withPg(async (db) => {
+      await importBoards(db, [board("A-1"), board("A-2")], {
+        areas: [area("A-1"), { ...area("A-2", "春吉小"), schoolSource: "map", chome: null }],
+      });
+      expect((await readAreas(db)).rows).toEqual([
+        { number: "A-1", school: "天神小", school_source: "pdf", town: "天神", chome: "1" },
+        { number: "A-2", school: "春吉小", school_source: "map", town: "天神", chome: null },
+      ]);
+    });
+  });
+
+  test("掲示板の取り込みに失敗したら、表も書かない", async () => {
+    await withPg(async (db) => {
+      const broken = { ...board("A-2"), name: null as unknown as string };
+      await expect(
+        importBoards(db, [board("A-1"), broken], { areas: [area("A-1"), area("A-2")] }),
+      ).rejects.toThrow();
+      expect((await readAreas(db)).rows).toEqual([]);
+    });
+  });
+
+  test("取り込み直すと校区・町名を更新する", async () => {
+    await withPg(async (db) => {
+      await importBoards(db, [board("A-1")], { areas: [area("A-1")] });
+      await importBoards(db, [board("A-1")], {
+        areas: [{ ...area("A-1", "春吉小"), town: "春吉", chome: "2" }],
+      });
+      expect((await readAreas(db)).rows).toEqual([
+        { number: "A-1", school: "春吉小", school_source: "pdf", town: "春吉", chome: "2" },
+      ]);
+    });
+  });
+
+  test("取り込む番号の分だけ書く（渡した areas にほかの番号があっても入れない）", async () => {
+    await withPg(async (db) => {
+      await importBoards(db, [board("A-1")], { areas: [area("A-1"), area("A-9")] });
+      expect((await readAreas(db)).rows.map((r) => r.number)).toEqual(["A-1"]);
+    });
+  });
+
+  test("番号の付け替えに表がついてくる", async () => {
+    await withPg(async (db) => {
+      await importBoards(db, [board("A-1")], { areas: [area("A-1")] });
+      await db.query("update public.poster_boards set number = 'B-9' where number = 'A-1'");
+      expect((await readAreas(db)).rows.map((r) => r.number)).toEqual(["B-9"]);
+    });
+  });
+
+  test("prune で消えた掲示板の行は消える", async () => {
+    await withPg(async (db) => {
+      await importBoards(db, [board("A-1"), board("A-2")], { areas: [area("A-1"), area("A-2")] });
+      await importBoards(db, [board("A-1")], {
+        areas: [area("A-1")],
+        prune: true,
+        confirmPrune: 1,
+      });
+      expect((await readAreas(db)).rows.map((r) => r.number)).toEqual(["A-1"]);
     });
   });
 });
