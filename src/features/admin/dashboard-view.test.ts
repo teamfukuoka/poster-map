@@ -3,11 +3,12 @@ import {
   isBeforeStaleTable,
   siteStateLabel,
   sortWardProgress,
+  sumWardProgress,
   textOrDash,
 } from "./dashboard-view";
 import type { SiteState, WardProgress } from "./types";
 
-const ward = (name: string): WardProgress => ({ ward: name, total: 10, done: 1, reserved: 2 });
+const ward = (name: string): WardProgress => ({ ward: name, total: 10, planned: 2, done: 1 });
 
 test("sortWardProgress は逆順で渡した7区を公式の順に並べる", () => {
   const reversed = ["西区", "早良区", "城南区", "南区", "中央区", "博多区", "東区"].map(ward);
@@ -31,6 +32,18 @@ test("sortWardProgress は渡した配列を書き換えない", () => {
   const rows = ["西区", "東区"].map(ward);
   sortWardProgress(rows);
   expect(rows.map((r) => r.ward)).toEqual(["西区", "東区"]);
+});
+
+test("sumWardProgress は全数・計画・実績をそれぞれ足す", () => {
+  const rows: WardProgress[] = [
+    { ward: "東区", total: 10, planned: 4, done: 1 },
+    { ward: "南区", total: 5, planned: 5, done: 2 },
+  ];
+  expect(sumWardProgress(rows)).toEqual({ total: 15, planned: 9, done: 3 });
+});
+
+test("sumWardProgress は空なら全部 0", () => {
+  expect(sumWardProgress([])).toEqual({ total: 0, planned: 0, done: 0 });
 });
 
 const site = (over: Partial<SiteState>): SiteState => ({

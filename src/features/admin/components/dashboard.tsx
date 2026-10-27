@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import { isBoardStatus, STATUS_CONFIG } from "@/features/poster-map/status";
+import { formatShare, isRehearsalNotePeriod } from "../coverage-view";
 import {
   formatJst,
   isBeforeStaleTable,
   siteStateLabel,
   sortWardProgress,
+  sumWardProgress,
   textOrDash,
 } from "../dashboard-view";
 import type { Dashboard as DashboardData } from "../types";
@@ -48,6 +50,7 @@ const NOWRAP = "whitespace-nowrap";
 /** 最初の画面。表の順は設計書 §6 */
 export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
   const staleEmptyText = isBeforeStaleTable(now) ? "11月1日14:00から表示します" : EMPTY;
+  const wardTotals = sumWardProgress(data.wards);
   return (
     <div className="space-y-6">
       <SiteStateBadge label={siteStateLabel(data.site)} />
@@ -145,8 +148,8 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
             <tr className="text-left text-muted-foreground text-xs">
               <th className={TH}>区</th>
               <th className={`${TH} text-right`}>全数</th>
-              <th className={`${TH} text-right`}>完了</th>
-              <th className={`${TH} text-right`}>予約</th>
+              <th className={`${TH} text-right`}>計画</th>
+              <th className={`${TH} text-right`}>実績</th>
             </tr>
           </thead>
           <tbody>
@@ -154,12 +157,27 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
               <tr key={row.ward} className="border-t">
                 <td className={TD}>{row.ward}</td>
                 <td className={`${TD} text-right`}>{row.total}</td>
-                <td className={`${TD} text-right`}>{row.done}</td>
-                <td className={`${TD} text-right`}>{row.reserved}</td>
+                <td className={`${TD} text-right`}>{formatShare(row.planned, row.total)}</td>
+                <td className={`${TD} text-right`}>{formatShare(row.done, row.total)}</td>
               </tr>
             ))}
+            <tr className="border-t font-bold">
+              <td className={TD}>合計</td>
+              <td className={`${TD} text-right`}>{wardTotals.total}</td>
+              <td className={`${TD} text-right`}>
+                {formatShare(wardTotals.planned, wardTotals.total)}
+              </td>
+              <td className={`${TD} text-right`}>
+                {formatShare(wardTotals.done, wardTotals.total)}
+              </td>
+            </tr>
           </tbody>
         </table>
+        {isRehearsalNotePeriod(now) && (
+          <p className="mt-2 text-muted-foreground text-xs">
+            10/31 までの予約・貼ったはリハーサルの報告です
+          </p>
+        )}
       </Section>
     </div>
   );

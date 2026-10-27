@@ -13,6 +13,21 @@ export function sortWardProgress(rows: WardProgress[]): WardProgress[] {
   return [...rows].sort((a, b) => wardOrder(a.ward) - wardOrder(b.ward));
 }
 
+/** 区ごとの進み具合の合計（全数・計画・実績） */
+export function sumWardProgress(rows: WardProgress[]): {
+  total: number;
+  planned: number;
+  done: number;
+} {
+  const sum = { total: 0, planned: 0, done: 0 };
+  for (const r of rows) {
+    sum.total += r.total;
+    sum.planned += r.planned;
+    sum.done += r.done;
+  }
+  return sum;
+}
+
 /** 公開の状態。force_hidden で止めていれば、期間の内外にかかわらず「止めている」 */
 export function siteStateLabel(s: SiteState): SiteStateLabel {
   if (s.force_hidden) return "止めている";

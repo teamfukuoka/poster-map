@@ -276,7 +276,7 @@ export type Database = {
         Args: never
         Returns: {
           done: number
-          reserved: number
+          planned: number
           total: number
           ward: string
         }[]
