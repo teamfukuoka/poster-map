@@ -368,6 +368,24 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
     { signature: "public.admin_dangerous_boards()", anon: false, authenticated: true },
     { signature: "public.admin_recent_reports()", anon: false, authenticated: true },
     { signature: "public.admin_ward_progress()", anon: false, authenticated: true },
+    { signature: "public.admin_coverage_summary()", anon: false, authenticated: true },
+    { signature: "public.admin_coverage_boards()", anon: false, authenticated: true },
+    { signature: "public.admin_coverage_assignees()", anon: false, authenticated: true },
+    {
+      signature: "public.admin_create_coverage_assignee(text, text, jsonb)",
+      anon: false,
+      authenticated: true,
+    },
+    {
+      signature: "public.admin_update_coverage_assignee(uuid, timestamptz, text, text, jsonb)",
+      anon: false,
+      authenticated: true,
+    },
+    {
+      signature: "public.admin_delete_coverage_assignee(uuid, timestamptz)",
+      anon: false,
+      authenticated: true,
+    },
     { signature: "public.admin_site_state()", anon: false, authenticated: true },
     { signature: "public.admin_set_force_hidden(boolean)", anon: false, authenticated: true },
     { signature: "public.admin_reset_rehearsal(text)", anon: false, authenticated: true },
@@ -492,6 +510,8 @@ describe("直接書き込み・private schema へのアクセスは拒否され�
   test.each([
     "invite_codes",
     "invite_code_failures",
+    "coverage_assignees",
+    "coverage_ranges",
   ])("private.%s は API から読めない", async (table) => {
     const { client } = await signInVolunteer("たろう");
     // private は生成された型に無いので、schema 名だけ最小限のキャストで渡す

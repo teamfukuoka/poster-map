@@ -118,6 +118,55 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_coverage_assignees: {
+        Args: never
+        Returns: {
+          board_count: number
+          id: string
+          label: string
+          note: string
+          ranges: Json
+          updated_at: string
+        }[]
+      }
+      admin_coverage_boards: {
+        Args: never
+        Returns: {
+          address: string
+          assignee_labels: string[]
+          board_id: string
+          chome: string
+          coverage: string
+          lat: number
+          long: number
+          name: string
+          number: string
+          school: string
+          school_source: string
+          status: Database["public"]["Enums"]["poster_board_status"]
+          town: string
+          ward: string
+        }[]
+      }
+      admin_coverage_summary: {
+        Args: never
+        Returns: {
+          assigned: number
+          assignee_labels: string[]
+          chome: string
+          none: number
+          reserved: number
+          school: string
+          total: number
+          town: string
+          unit: string
+          ward: string
+        }[]
+      }
+      admin_create_coverage_assignee: {
+        Args: { p_label: string; p_note: string; p_ranges: Json }
+        Returns: string
+      }
       admin_dangerous_boards: {
         Args: never
         Returns: {
@@ -129,6 +178,10 @@ export type Database = {
           reported_by: string
           ward: string
         }[]
+      }
+      admin_delete_coverage_assignee: {
+        Args: { p_expected_updated_at: string; p_id: string }
+        Returns: undefined
       }
       admin_list_invite_codes: {
         Args: never
@@ -208,6 +261,16 @@ export type Database = {
           reserved_by: string
           ward: string
         }[]
+      }
+      admin_update_coverage_assignee: {
+        Args: {
+          p_expected_updated_at: string
+          p_id: string
+          p_label: string
+          p_note: string
+          p_ranges: Json
+        }
+        Returns: undefined
       }
       admin_ward_progress: {
         Args: never

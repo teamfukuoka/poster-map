@@ -120,7 +120,7 @@ export async function resetDatabase(): Promise<void> {
   }
   await withPg(async (db) => {
     await db.query(
-      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures, private.admin_members, private.admin_audit_log cascade",
+      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures, private.admin_members, private.admin_audit_log, private.coverage_assignees cascade",
     );
     await db.query(
       "update private.admin_settings set allowed_amr = '{oauth}', rehearsal_reset_until = '2026-11-01 00:00:00+09', stale_reserved_after = '2026-11-01 14:00:00+09'",
