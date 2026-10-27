@@ -47,3 +47,57 @@ export type Dashboard = {
   reports: RecentReport[];
   wards: WardProgress[];
 };
+
+// ---- カバー地域 ----------------------------------------------------------
+
+export type CoverageKind = "ward" | "school" | "town" | "chome";
+/** kind ごとに使う項目だけが入り、ほかは null（ward: ward / school: school / town: ward・town / chome: ward・town・chome） */
+export type CoverageRange = {
+  kind: CoverageKind;
+  ward: string | null;
+  school: string | null;
+  town: string | null;
+  chome: string | null;
+};
+export type CoverageStatus = "assigned" | "reserved" | "none";
+
+/**
+ * ward / school / town / chome: 生成された型は null にならないと見ているが、
+ * 校区・町名の表にない掲示場の行、その単位で使わない項目は null
+ * （none: 担当のつかない掲示場の数。予約・完了は reserved）
+ */
+export type CoverageSummaryRow = Omit<
+  Row<"admin_coverage_summary">,
+  "unit" | "ward" | "school" | "town" | "chome"
+> & {
+  unit: CoverageKind;
+  ward: string | null;
+  school: string | null;
+  town: string | null;
+  chome: string | null;
+};
+
+/** school / school_source / town / chome: 校区・町名の表にない掲示場は null */
+export type CoverageBoard = Omit<
+  Row<"admin_coverage_boards">,
+  "coverage" | "school" | "school_source" | "town" | "chome"
+> & {
+  coverage: CoverageStatus;
+  school: string | null;
+  school_source: string | null;
+  town: string | null;
+  chome: string | null;
+};
+
+/** updated_at は文字列のまま画面と Server Action を往復させる（Date にしない。DB はマイクロ秒で比べる） */
+export type CoverageAssignee = Omit<Row<"admin_coverage_assignees">, "ranges"> & {
+  ranges: CoverageRange[];
+};
+
+export type Coverage = {
+  summary: CoverageSummaryRow[];
+  boards: CoverageBoard[];
+  assignees: CoverageAssignee[];
+};
+
+export type AssigneeInput = { label: string; note: string; ranges: CoverageRange[] };

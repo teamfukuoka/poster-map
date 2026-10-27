@@ -38,3 +38,15 @@ test("Object の組み込みのプロパティ名は共通の文言", () => {
 test("poster-map 側の文言は管理画面では使わない", () => {
   expect(toAdminMessage({ message: "invalid_invite_code" })).toBe(FALLBACK_MESSAGE);
 });
+
+test("カバー地域のエラーは文言になる", () => {
+  expect(toAdminMessage({ message: "stale_assignee" })).toBe(
+    "ほかの人が先に直しました。開き直してください",
+  );
+  expect(toAdminMessage({ message: "assignee_not_found" })).toBe(
+    "この担当者はもう外されています。開き直してください",
+  );
+  expect(toAdminMessage({ message: "invalid_coverage_ranges" })).toBe(
+    "範囲を1つ以上選んでください。",
+  );
+});

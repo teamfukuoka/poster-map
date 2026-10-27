@@ -13,6 +13,12 @@ const MESSAGES: Record<string, string> = {
   confirm_mismatch: "確認の文字が違います。画面に書かれた文字をそのまま入れてください。",
   not_accepted: "受理を確かめる前は、「公開する」から公開してください。",
   before_public_from: "公開期間の始まり（11月1日0:00）より前は公開できません。",
+  invalid_assignee_label: "呼び名は1〜30文字で入れてください。",
+  invalid_assignee_note: "メモは200文字までです。",
+  invalid_coverage_ranges: "範囲を1つ以上選んでください。",
+  unknown_coverage_place: "選んだ範囲が掲示場のデータにありません。選び直してください。",
+  stale_assignee: "ほかの人が先に直しました。開き直してください",
+  assignee_not_found: "この担当者はもう外されています。開き直してください",
 };
 
 /** 管理画面の RPC の例外を、画面に出す文言にする */

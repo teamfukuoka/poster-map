@@ -43,3 +43,9 @@ test("読めない値はそのまま出す", () => {
   expect(auditTargetLabel("reset_rehearsal", "abc")).toBe("abc");
   expect(auditTargetLabel("set_force_hidden", "maybe")).toBe("maybe");
 });
+
+test("担当者の操作は読める名前になる", () => {
+  expect(auditActionLabel("coverage_assignee_create")).toBe("担当者の登録");
+  expect(auditActionLabel("coverage_assignee_update")).toBe("担当者の変更");
+  expect(auditActionLabel("coverage_assignee_delete")).toBe("担当者を外す");
+});

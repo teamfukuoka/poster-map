@@ -1,6 +1,9 @@
 import {
+  createCoverageAssignee,
+  deleteCoverageAssignee,
   getAdminRole,
   loadAuditLog,
+  loadCoverage,
   loadDashboard,
   loadInviteCodes,
   publishSite,
@@ -10,6 +13,7 @@ import {
   revertAcceptance,
   revokeInviteCode,
   setForceHidden,
+  updateCoverageAssignee,
 } from "@/features/admin/admin-service";
 import { joinAsVolunteer } from "@/features/poster-map/volunteer-service";
 import {
@@ -18,6 +22,7 @@ import {
   resetDatabase,
   setAccepted,
   setAdminSettings,
+  setBoardArea,
   setPublicWindow,
   signInAnon,
   signInStaff,
@@ -1162,6 +1167,120 @@ describe("admin service", () => {
     const list = await loadInviteCodes(admin);
     const id = list.ok ? list.data.find((r) => r.label === "integration")?.id : undefined;
     expect(await revealInviteCode(admin, id as string)).toEqual({ ok: true, data: { code: null } });
+  });
+
+  test("loadCoverage は集計・掲示場・担当者の 3 つをそろえて返す", async () => {
+    await insertBoard("C-1", "not_yet", "東区");
+    await insertBoard("C-2", "reserved", "東区");
+    await setBoardArea("C-1", { school: "馬出小", town: "馬出", chome: "1丁目" });
+    const { client } = await signInStaff("operator");
+    const range = { kind: "town", ward: "東区", school: null, town: "馬出", chome: null } as const;
+    expect(
+      await createCoverageAssignee(client, { label: "田中さん", note: "", ranges: [range] }),
+    ).toEqual({ ok: true, data: null });
+    const result = await loadCoverage(client);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.summary.find((r) => r.unit === "ward" && r.ward === "東区")).toMatchObject({
+      total: 2,
+      assigned: 1,
+      reserved: 1,
+      none: 0,
+    });
+    expect(result.data.boards.map((b) => [b.number, b.coverage])).toEqual([
+      ["C-1", "assigned"],
+      ["C-2", "reserved"],
+    ]);
+    expect(result.data.boards[1].school).toBeNull();
+    expect(result.data.assignees).toHaveLength(1);
+    expect(result.data.assignees[0]).toMatchObject({
+      label: "田中さん",
+      ranges: [range],
+      board_count: 1,
+    });
+  });
+
+  test("loadCoverage は一覧にない人で not_admin の文言を返す", async () => {
+    const { client } = await signInStaff(null);
+    expect(await loadCoverage(client)).toEqual({
+      ok: false,
+      error: "このアカウントでは管理画面に入れません。管理者に一覧への追加を頼んでください。",
+    });
+  });
+
+  test("updated_at は文字列のまま往復でき、古い値は stale_assignee の文言になる", async () => {
+    await insertBoard("C-1", "not_yet", "東区");
+    const { client } = await signInStaff("operator");
+    const ranges = [{ kind: "ward", ward: "東区", school: null, town: null, chome: null }] as const;
+    await createCoverageAssignee(client, { label: "田中さん", note: "", ranges: [...ranges] });
+    const first = await loadCoverage(client);
+    if (!first.ok) throw new Error("load failed");
+    const { id, updated_at: stamp } = first.data.assignees[0];
+    expect(
+      await updateCoverageAssignee(client, id, stamp, {
+        label: "田中",
+        note: "メモ",
+        ranges: [...ranges],
+      }),
+    ).toEqual({
+      ok: true,
+      data: null,
+    });
+    // 同じ（古い）値で直すと断られる
+    expect(
+      await updateCoverageAssignee(client, id, stamp, {
+        label: "田中2",
+        note: "",
+        ranges: [...ranges],
+      }),
+    ).toEqual({
+      ok: false,
+      error: "ほかの人が先に直しました。開き直してください",
+    });
+    expect(await deleteCoverageAssignee(client, id, stamp)).toEqual({
+      ok: false,
+      error: "ほかの人が先に直しました。開き直してください",
+    });
+    const second = await loadCoverage(client);
+    if (!second.ok) throw new Error("load failed");
+    expect(second.data.assignees[0]).toMatchObject({ label: "田中", note: "メモ" });
+    expect(await deleteCoverageAssignee(client, id, second.data.assignees[0].updated_at)).toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(await deleteCoverageAssignee(client, id, stamp)).toEqual({
+      ok: false,
+      error: "この担当者はもう外されています。開き直してください",
+    });
+  });
+
+  test("担当者の入力エラーは文言になる", async () => {
+    await insertBoard("C-1", "not_yet", "東区");
+    const { client } = await signInStaff("operator");
+    const ward = { kind: "ward", ward: "東区", school: null, town: null, chome: null } as const;
+    expect(await createCoverageAssignee(client, { label: "  ", note: "", ranges: [ward] })).toEqual(
+      {
+        ok: false,
+        error: "呼び名は1〜30文字で入れてください。",
+      },
+    );
+    expect(
+      await createCoverageAssignee(client, { label: "A", note: "あ".repeat(201), ranges: [ward] }),
+    ).toEqual({ ok: false, error: "メモは200文字までです。" });
+    expect(await createCoverageAssignee(client, { label: "A", note: "", ranges: [] })).toEqual({
+      ok: false,
+      error: "範囲を1つ以上選んでください。",
+    });
+    expect(
+      await createCoverageAssignee(client, {
+        label: "A",
+        note: "",
+        ranges: [{ ...ward, ward: "存在しない区" }],
+      }),
+    ).toEqual({
+      ok: false,
+      error: "選んだ範囲が掲示場のデータにありません。選び直してください。",
+    });
   });
 
   test("publishSite と revertAcceptance は文言にして返す", async () => {

@@ -7,7 +7,8 @@ import type { ActionResult } from "@/features/poster-map/types";
 import { SITE_NAME_TAG } from "@/lib/site-name";
 import { createClient } from "@/lib/supabase/server";
 import * as service from "./admin-service";
-import type { RevealedInviteCode } from "./types";
+import { parseRanges } from "./coverage-view";
+import type { CoverageRange, RevealedInviteCode } from "./types";
 
 function invalidInput(): { ok: false; error: string } {
   return { ok: false, error: FALLBACK_MESSAGE };
@@ -83,4 +84,52 @@ export async function revertAcceptanceAction(confirm: string): Promise<ActionRes
 export async function resetRehearsalAction(confirm: string): Promise<ActionResult<null>> {
   if (!isString(confirm)) return invalidInput();
   return refreshOnSuccess(await service.resetRehearsal(await createClient(), confirm));
+}
+
+export async function createCoverageAssigneeAction(
+  label: string,
+  note: string,
+  ranges: CoverageRange[],
+): Promise<ActionResult<null>> {
+  const parsed = parseRanges(ranges);
+  if (!isString(label) || !isString(note) || !parsed) return invalidInput();
+  return refreshOnSuccess(
+    await service.createCoverageAssignee(await createClient(), { label, note, ranges: parsed }),
+  );
+}
+
+export async function updateCoverageAssigneeAction(
+  id: string,
+  expectedUpdatedAt: string,
+  label: string,
+  note: string,
+  ranges: CoverageRange[],
+): Promise<ActionResult<null>> {
+  const parsed = parseRanges(ranges);
+  if (
+    !isString(id) ||
+    !isString(expectedUpdatedAt) ||
+    !isString(label) ||
+    !isString(note) ||
+    !parsed
+  ) {
+    return invalidInput();
+  }
+  return refreshOnSuccess(
+    await service.updateCoverageAssignee(await createClient(), id, expectedUpdatedAt, {
+      label,
+      note,
+      ranges: parsed,
+    }),
+  );
+}
+
+export async function deleteCoverageAssigneeAction(
+  id: string,
+  expectedUpdatedAt: string,
+): Promise<ActionResult<null>> {
+  if (!isString(id) || !isString(expectedUpdatedAt)) return invalidInput();
+  return refreshOnSuccess(
+    await service.deleteCoverageAssignee(await createClient(), id, expectedUpdatedAt),
+  );
 }

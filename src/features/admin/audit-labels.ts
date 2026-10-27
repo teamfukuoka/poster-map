@@ -6,6 +6,9 @@ const ACTION_LABELS: Record<string, string> = {
   reveal_invite_code: "参加コードの表示",
   publish: "公開（受理後の名前に切り替え）",
   revert_acceptance: "受理前に戻す",
+  coverage_assignee_create: "担当者の登録",
+  coverage_assignee_update: "担当者の変更",
+  coverage_assignee_delete: "担当者を外す",
 };
 
 /** 操作の記録の「操作」。知らない操作はそのまま出す */

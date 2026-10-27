@@ -3,10 +3,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ActionResult } from "@/features/poster-map/types";
 import type { Database } from "@/lib/supabase/database.types";
+import { parseRanges } from "./coverage-view";
 import { toAdminMessage } from "./errors";
 import type {
   AdminRole,
+  AssigneeInput,
   AuditLogRow,
+  Coverage,
+  CoverageBoard,
+  CoverageSummaryRow,
   Dashboard,
   InviteCodeRow,
   RevealedInviteCode,
@@ -141,4 +146,75 @@ export async function loadAuditLog(client: Client): Promise<ActionResult<AuditLo
   const { data, error } = await client.rpc("admin_recent_audit_log");
   if (error) return failure(error);
   return { ok: true, data: data ?? [] };
+}
+
+/** 区・校区・町名ごとの数、掲示場ごとの判定、担当者の 3 つ。どれかが失敗したら全体を失敗にする */
+export async function loadCoverage(client: Client): Promise<ActionResult<Coverage>> {
+  const [summary, boards, assignees] = await Promise.all([
+    client.rpc("admin_coverage_summary"),
+    client.rpc("admin_coverage_boards"),
+    client.rpc("admin_coverage_assignees"),
+  ]);
+  const error = summary.error ?? boards.error ?? assignees.error;
+  if (error) return failure(error);
+  const rows = [];
+  for (const row of assignees.data ?? []) {
+    const ranges = parseRanges(row.ranges);
+    if (!ranges) return failure(null);
+    // updated_at は文字列のまま返す（Date にしない。更新・削除の比較にそのまま使う）
+    rows.push({ ...row, ranges });
+  }
+  return {
+    ok: true,
+    data: {
+      // 型の絞り込み（unit・coverage）は DB の check と RPC の case が保証する
+      summary: (summary.data ?? []) as CoverageSummaryRow[],
+      boards: (boards.data ?? []) as CoverageBoard[],
+      assignees: rows,
+    },
+  };
+}
+
+export async function createCoverageAssignee(
+  client: Client,
+  input: AssigneeInput,
+): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_create_coverage_assignee", {
+    p_label: input.label,
+    p_note: input.note,
+    p_ranges: input.ranges,
+  });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
+/** expectedUpdatedAt は loadCoverage で受け取った文字列をそのまま渡す（食い違えば stale_assignee） */
+export async function updateCoverageAssignee(
+  client: Client,
+  id: string,
+  expectedUpdatedAt: string,
+  input: AssigneeInput,
+): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_update_coverage_assignee", {
+    p_id: id,
+    p_expected_updated_at: expectedUpdatedAt,
+    p_label: input.label,
+    p_note: input.note,
+    p_ranges: input.ranges,
+  });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
+export async function deleteCoverageAssignee(
+  client: Client,
+  id: string,
+  expectedUpdatedAt: string,
+): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_delete_coverage_assignee", {
+    p_id: id,
+    p_expected_updated_at: expectedUpdatedAt,
+  });
+  if (error) return failure(error);
+  return { ok: true, data: null };
 }
