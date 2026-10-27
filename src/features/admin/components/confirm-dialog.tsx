@@ -1,5 +1,5 @@
 "use client";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -69,8 +69,12 @@ function ConfirmBody({
 }: Omit<Props, "open"> & { isRunning: boolean; setIsRunning: (running: boolean) => void }) {
   const [typed, setTyped] = useState("");
   const matches = confirmWord === undefined || typed === confirmWord;
+  // state は次の描画まで変わらないので、同じ瞬間の二度押しは ref で止める
+  const started = useRef(false);
 
   const run = async () => {
+    if (started.current) return;
+    started.current = true;
     setIsRunning(true);
     try {
       await onConfirm();
@@ -78,6 +82,7 @@ function ConfirmBody({
       // 呼び出し側が自分で catch して画面に出す前提。ここまで届いたものは握りつぶさず記録する
       console.error(error);
     } finally {
+      started.current = false;
       setIsRunning(false);
       onOpenChange(false);
     }

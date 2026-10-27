@@ -1200,6 +1200,37 @@ describe("admin service", () => {
     });
   });
 
+  test("loadCoverage は 1,000 行（max_rows）を超えても集計・掲示場を全部読む", async () => {
+    const count = 1100;
+    // 1 件ごとに別の町名にして、集計の行も 1,000 を超えさせる
+    await withPg(async (db) => {
+      await db.query(
+        `insert into public.poster_boards (number, name, address, ward, lat, long, status)
+         select 'P-' || lpad(n::text, 5, '0'), 'b' || n, '東区' || n, '東区', 33.59, 130.40, 'not_yet'
+         from generate_series(1, $1) n`,
+        [count],
+      );
+      await db.query(
+        `insert into private.board_areas (number, school, school_source, town, chome)
+         select 'P-' || lpad(n::text, 5, '0'), 'S' || (n % 7), 'pdf', 'T' || n, null
+         from generate_series(1, $1) n`,
+        [count],
+      );
+    });
+    const { client } = await signInStaff("operator");
+    const result = await loadCoverage(client);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.boards).toHaveLength(count);
+    expect(new Set(result.data.boards.map((b) => b.board_id)).size).toBe(count);
+    expect(result.data.boards.every((b) => b.school_source !== null)).toBe(true);
+    expect(result.data.summary.length).toBeGreaterThan(1000);
+    expect(result.data.summary.filter((r) => r.unit === "town")).toHaveLength(count);
+    expect(result.data.summary.find((r) => r.unit === "ward" && r.ward === "東区")?.total).toBe(
+      count,
+    );
+  });
+
   test("loadCoverage は一覧にない人で not_admin の文言を返す", async () => {
     const { client } = await signInStaff(null);
     expect(await loadCoverage(client)).toEqual({

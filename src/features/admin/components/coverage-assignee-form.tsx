@@ -1,5 +1,5 @@
 "use client";
-import { type FormEvent, useId, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,8 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
   const [pick, setPick] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // state は次の描画まで変わらないので、同じ瞬間の二度押しは ref で止める
+  const sending = useRef(false);
 
   const chosenKeys = new Set(ranges.map(rangeKey));
   const candidates = searchPlaces(places, query);
@@ -74,6 +76,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+    if (sending.current) return;
     const trimmed = label.trim();
     const length = [...trimmed].length;
     if (length < 1 || length > LABEL_MAX) {
@@ -85,6 +88,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
       return;
     }
     setError(null);
+    sending.current = true;
     setSaving(true);
     try {
       // updated_at は読み込んだ文字列のまま渡す（Date にしない。DB はマイクロ秒で比べる）
@@ -109,6 +113,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
       // 通信の切断や再デプロイで reject することがある
       setError(FALLBACK_MESSAGE);
     } finally {
+      sending.current = false;
       setSaving(false);
     }
   };

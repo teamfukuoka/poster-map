@@ -168,3 +168,41 @@ test("直すときは中身入りで開き、updated_at を文字列のまま渡
   );
   await waitFor(() => expect(onDone).toHaveBeenCalled());
 });
+
+test("保存中にもう一度押しても、action は 1 回しか呼ばれない", async () => {
+  let finish: (v: { ok: true; data: null }) => void = () => {};
+  mockedCreate.mockReturnValue(
+    new Promise((resolve) => {
+      finish = resolve;
+    }),
+  );
+  renderForm();
+  type("呼び名", "B班");
+  addBySearch("箱崎", /^東区 箱崎 町名/);
+  // 同じ瞬間の二度押し（描画の前）
+  await act(async () => {
+    submit();
+    submit();
+  });
+  expect(mockedCreate).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("button", { name: "登録する" })).toBeDisabled();
+  await act(async () => {
+    finish({ ok: true, data: null });
+  });
+  expect(screen.getByRole("button", { name: "登録する" })).toBeEnabled();
+});
+
+test("失敗したあとはもう一度送れる", async () => {
+  mockedCreate.mockResolvedValueOnce({ ok: false, error: "x" });
+  mockedCreate.mockResolvedValueOnce({ ok: true, data: null });
+  renderForm();
+  type("呼び名", "B班");
+  addBySearch("箱崎", /^東区 箱崎 町名/);
+  await act(async () => {
+    submit();
+  });
+  await act(async () => {
+    submit();
+  });
+  expect(mockedCreate).toHaveBeenCalledTimes(2);
+});

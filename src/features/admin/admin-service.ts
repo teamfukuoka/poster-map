@@ -5,6 +5,7 @@ import type { ActionResult } from "@/features/poster-map/types";
 import type { Database } from "@/lib/supabase/database.types";
 import { parseRanges } from "./coverage-view";
 import { toAdminMessage } from "./errors";
+import { fetchAllRows } from "./paging";
 import type {
   AdminRole,
   AssigneeInput,
@@ -148,12 +149,15 @@ export async function loadAuditLog(client: Client): Promise<ActionResult<AuditLo
   return { ok: true, data: data ?? [] };
 }
 
-/** 区・校区・町名ごとの数、掲示場ごとの判定、担当者の 3 つ。どれかが失敗したら全体を失敗にする */
+/**
+ * 区・校区・町名ごとの数、掲示場ごとの判定、担当者の 3 つ。どれかが失敗したら全体を失敗にする。
+ * どれも 1,000 行（max_rows）を超えるので、range でページを分けて全部取る
+ */
 export async function loadCoverage(client: Client): Promise<ActionResult<Coverage>> {
   const [summary, boards, assignees] = await Promise.all([
-    client.rpc("admin_coverage_summary"),
-    client.rpc("admin_coverage_boards"),
-    client.rpc("admin_coverage_assignees"),
+    fetchAllRows((from, to) => client.rpc("admin_coverage_summary").range(from, to)),
+    fetchAllRows((from, to) => client.rpc("admin_coverage_boards").range(from, to)),
+    fetchAllRows((from, to) => client.rpc("admin_coverage_assignees").range(from, to)),
   ]);
   const error = summary.error ?? boards.error ?? assignees.error;
   if (error) return failure(error);

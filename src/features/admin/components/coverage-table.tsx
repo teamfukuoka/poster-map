@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { WARDS } from "@/features/poster-map/area";
 import { boardsInRow, chomeRowsOf, filterSummary, formatShare } from "../coverage-view";
 import type { CoverageBoard, CoverageKind, CoverageSummaryRow } from "../types";
@@ -69,10 +69,19 @@ export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
 
   const rows = filterSummary(summary, { unit, ward, onlyGaps });
 
-  const changeUnit = (next: CoverageKind) => {
-    setUnit(next);
-    onSelect(null);
-  };
+  // 選んだ行が一覧から見えなくなったら（単位・絞り込みの切り替え、丁目を閉じる、集計の読み直し）選びを外す
+  const visibleChomes = rows.flatMap((r) =>
+    r.unit === "town" && r.ward !== null && r.town !== null && opened.has(rowKey(r))
+      ? chomeRowsOf(summary, r.ward, r.town)
+      : [],
+  );
+  const isVisible =
+    selected === null ||
+    rows.some((r) => isSameRow(r, selected)) ||
+    visibleChomes.some((r) => isSameRow(r, selected));
+  useEffect(() => {
+    if (!isVisible) onSelect(null);
+  }, [isVisible, onSelect]);
 
   const toggleOpen = (key: string) => {
     const next = new Set(opened);
@@ -92,7 +101,7 @@ export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
     return (
       <Fragment key={key}>
         <tr className={`border-t ${isSelected ? "bg-brand-light" : ""}`}>
-          <td className={`${TD} ${depth === 1 ? "pl-4" : ""}`}>
+          <td className={`${TD} ${NOWRAP} ${depth === 1 ? "pl-4" : ""}`}>
             <button
               type="button"
               aria-pressed={isSelected}
@@ -142,7 +151,7 @@ export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
               key={u.unit}
               type="button"
               aria-pressed={unit === u.unit}
-              onClick={() => changeUnit(u.unit)}
+              onClick={() => setUnit(u.unit)}
               className={
                 unit === u.unit
                   ? "h-9 rounded-full bg-brand-light px-4 font-bold text-brand-dark text-sm"
@@ -159,7 +168,6 @@ export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
             value={ward ?? ""}
             onChange={(e) => {
               setWard(e.target.value === "" ? null : e.target.value);
-              onSelect(null);
             }}
             className="h-9 rounded-lg border border-input bg-background px-2 text-sm"
           >

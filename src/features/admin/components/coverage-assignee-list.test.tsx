@@ -124,3 +124,25 @@ test("直すのをやめられる", () => {
   fireEvent.click(screen.getByRole("button", { name: "やめる" }));
   expect(screen.queryByLabelText("呼び名")).not.toBeInTheDocument();
 });
+
+test("開いたまま一覧が更新されたら、直すフォームも新しい値で開き直す", () => {
+  const { rerender } = renderList();
+  fireEvent.click(screen.getByRole("button", { name: "A班を直す" }));
+  expect(screen.getByLabelText("呼び名")).toHaveValue("A班");
+  const updated = { ...A, label: "A班（直した）", updated_at: "2026-10-28T00:00:01.000000+00:00" };
+  rerender(<CoverageAssigneeList assignees={[updated, B]} places={places} />);
+  expect(screen.getByLabelText("呼び名")).toHaveValue("A班（直した）");
+});
+
+test("「外す」を同じ瞬間に二度押しても、action は 1 回しか呼ばれない", async () => {
+  mockedDelete.mockReturnValue(new Promise(() => {}));
+  renderList();
+  fireEvent.click(screen.getByRole("button", { name: "A班を外す" }));
+  const dialog = await screen.findByRole("dialog");
+  const confirm = within(dialog).getByRole("button", { name: "外す" });
+  await act(async () => {
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+  });
+  expect(mockedDelete).toHaveBeenCalledTimes(1);
+});

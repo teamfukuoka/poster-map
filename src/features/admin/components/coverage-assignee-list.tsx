@@ -75,6 +75,7 @@ export function CoverageAssigneeList({
                 <li key={a.id}>
                   {editingId === a.id ? (
                     <CoverageAssigneeForm
+                      key={`${a.id}:${a.updated_at}`}
                       places={places}
                       assignees={assignees}
                       initial={a}
