@@ -8,6 +8,7 @@ type Item = { href: string; label: string; adminOnly?: boolean };
 const ITEMS: Item[] = [
   { href: "/admin", label: "最初の画面" },
   { href: "/admin/codes", label: "参加コード" },
+  { href: "/admin/coverage", label: "カバー地域" },
   { href: "/admin/site", label: "公開とリセット", adminOnly: true },
   { href: "/admin/audit", label: "操作の記録" },
 ];
