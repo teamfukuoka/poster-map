@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getAdminRole, loadInviteCodes } from "@/features/admin/admin-service";
+import { loadInviteCodes } from "@/features/admin/admin-service";
 import { InviteCodeForm } from "@/features/admin/components/invite-code-form";
 import { InviteCodeTable } from "@/features/admin/components/invite-code-table";
-import { createClient } from "@/lib/supabase/server";
+import { getStaffSession } from "@/features/admin/staff-session";
 
 export const metadata: Metadata = { title: "参加コード" };
 
 // (staff) の layout は画面の移動では描き直されないことがあるので、役割はここでも確かめる。
 // 一覧にはコードの平文を含めない（has_code だけ）。「表示」を押したときにだけ別に取る。
 export default async function InviteCodesPage() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) redirect("/admin/login");
+  const { supabase, signedIn, role } = await getStaffSession();
+  if (!signedIn) redirect("/admin/login");
 
-  const role = await getAdminRole(supabase);
   if (!role) {
     return (
       <p role="alert" className="text-sm">

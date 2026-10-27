@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getAdminRole, loadSiteState } from "@/features/admin/admin-service";
+import { loadSiteState } from "@/features/admin/admin-service";
 import { ResetRehearsal } from "@/features/admin/components/reset-rehearsal";
 import { SiteControls, SiteStatus } from "@/features/admin/components/site-controls";
-import { createClient } from "@/lib/supabase/server";
+import { getStaffSession } from "@/features/admin/staff-session";
 
 export const metadata: Metadata = { title: "公開とリセット" };
 
 // (staff) の layout は画面の移動では描き直されないことがあるので、役割はここでも確かめる。
 // 操作の部品は管理者にだけ描く。DB の RPC も管理者だけを通す
 export default async function SitePage() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) redirect("/admin/login");
+  const { supabase, signedIn, role } = await getStaffSession();
+  if (!signedIn) redirect("/admin/login");
 
-  const role = await getAdminRole(supabase);
   if (!role) {
     return (
       <p role="alert" className="text-sm">

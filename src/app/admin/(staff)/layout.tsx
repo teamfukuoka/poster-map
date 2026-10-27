@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { getAdminRole } from "@/features/admin/admin-service";
 import { logoutAction } from "@/features/admin/auth-actions";
 import { AdminNav } from "@/features/admin/components/admin-nav";
-import { createClient } from "@/lib/supabase/server";
+import { getStaffSession } from "@/features/admin/staff-session";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 
@@ -24,12 +23,10 @@ function LogoutButton() {
 // /admin/login はこの (staff) の外にあるので、ここからの redirect は繰り返さない。
 // 子ページは遷移のたびに描き直されないことがあるため、守りの本体は DB（RPC が役割を確かめる）。
 export default async function StaffLayout({ children }: { children: ReactNode }) {
-  const supabase = await createClient();
-  // getAdminRole は「一覧にない」も「RPC のエラー」も null。未ログインとの区別は getUser で行う
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) redirect("/admin/login");
+  // role は「一覧にない」も「RPC のエラー」も null。未ログインとの区別は signedIn で行う
+  const { signedIn, role } = await getStaffSession();
+  if (!signedIn) redirect("/admin/login");
 
-  const role = await getAdminRole(supabase);
   if (!role) {
     return (
       <div className="mx-auto max-w-md space-y-4 py-6">
