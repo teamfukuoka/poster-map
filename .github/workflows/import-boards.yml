@@ -1,0 +1,123 @@
+name: import-boards
+
+# 掲示場の CSV を Supabase に取り込む（手で実行するだけ。scripts/import-boards.ts を流す）。
+# - plan: 秘密情報を使わずに CSV を検査する（--dry-run。DB に接続しない）
+# - import: 選んだ Environment の SUPABASE_DB_URL で取り込む。production は承認されるまで動かず、main からだけ流せる
+# 同じ CSV を何度流しても結果は変わらない。--prune で消える掲示板があるときは、まず件数なしで実行して
+# 消える番号を確かめ、その件数を confirm_prune に入れて実行し直す（件数が違うと DB を変えずに止まる）。
+# 番号だけが変わった掲示板があるときは、先に照合レポートの SQL を SQL エディタで流す（手順書 §4-2）。
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 流す先
+        type: choice
+        options: [staging, production]
+        required: true
+      csv:
+        description: 取り込む CSV（repo の中のパス）
+        type: string
+        default: data/2026/boards.csv
+        required: true
+      prune:
+        description: CSV にない掲示板を消す（予約・報告の履歴も消える）
+        type: boolean
+        default: false
+      confirm_prune:
+        description: 消える件数（prune のとき。空なら消える番号を表示するだけで止まる）
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  # 秘密情報を使わない。入力を確かめ、CSV を検査する
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 入力を確かめる
+        env:
+          CSV: ${{ inputs.csv }}
+          PRUNE: ${{ inputs.prune }}
+          CONFIRM_PRUNE: ${{ inputs.confirm_prune }}
+        run: |
+          if ! [[ "$CSV" =~ ^data/[A-Za-z0-9_./-]+\.csv$ ]] || [[ "$CSV" == *..* ]]; then
+            echo "csv は data/ の下の .csv を指定してください: $CSV" >&2
+            exit 1
+          fi
+          if [ -n "$CONFIRM_PRUNE" ]; then
+            if [ "$PRUNE" != "true" ] || ! [[ "$CONFIRM_PRUNE" =~ ^[0-9]+$ ]]; then
+              echo "confirm_prune は prune を ON にしたときだけ、0 以上の整数で指定してください" >&2
+              exit 1
+            fi
+          fi
+      - uses: actions/checkout@v4
+      # pnpm の版は package.json の packageManager から読む
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4.3.0（秘密情報を扱う job でも使うので commit で固定する）
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: CSV を検査する（dry-run）
+        env:
+          CSV: ${{ inputs.csv }}
+          TARGET: ${{ inputs.environment }}
+        run: |
+          pnpm -s import:boards --dry-run "$CSV" | tee dry-run.txt
+          {
+            echo "## 取り込む CSV（$TARGET）"
+            echo
+            echo '```'
+            cat dry-run.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Environment production には承認者（required reviewers）がいるので、承認されるまで動かない
+  import:
+    needs: plan
+    if: inputs.environment == 'staging' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: import-boards-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - name: 接続先を確かめる
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          TARGET: ${{ inputs.environment }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
+            echo "Environment $TARGET の SUPABASE_DB_URL と SUPABASE_PROJECT_REF を設定してください" >&2
+            exit 1
+          fi
+          case "$SUPABASE_DB_URL" in
+            *"postgres.$SUPABASE_PROJECT_REF:"*) ;;
+            *) echo "SUPABASE_DB_URL が $TARGET のプロジェクト（$SUPABASE_PROJECT_REF）の Session pooler を指していません" >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1  # v4.3.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # 依存のインストールには秘密情報を渡さない（DATABASE_URL は取り込みの step だけに置く）
+      - run: pnpm install --frozen-lockfile
+      - name: 取り込む
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          CSV: ${{ inputs.csv }}
+          PRUNE: ${{ inputs.prune }}
+          CONFIRM_PRUNE: ${{ inputs.confirm_prune }}
+        run: |
+          args=()
+          if [ "$PRUNE" = "true" ]; then
+            args+=(--prune)
+            if [ -n "$CONFIRM_PRUNE" ]; then
+              args+=("--confirm-prune=$CONFIRM_PRUNE")
+            fi
+          fi
+          pnpm -s import:boards "${args[@]}" "$CSV"
