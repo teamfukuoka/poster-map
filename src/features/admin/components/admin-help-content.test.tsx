@@ -68,7 +68,13 @@ test("確認の文字とコードの決まりは、アプリの定義どおり�
 
 test("管理者だけの操作に印をつける", () => {
   render(<AdminHelpContent />);
-  for (const id of ["codes-register", "site-publish", "site-reset"]) {
+  for (const id of [
+    "codes-register",
+    "site-publish",
+    "site-reset",
+    "members-add",
+    "members-list",
+  ]) {
     expect(within(sectionOf(id)).getAllByText("管理者だけ").length).toBeGreaterThan(0);
   }
   expect(within(sectionOf("coverage-register")).queryByText("管理者だけ")).not.toBeInTheDocument();

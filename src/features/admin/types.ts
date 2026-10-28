@@ -37,6 +37,12 @@ export type AuditLogRow = Omit<Row<"admin_recent_audit_log">, "target"> & {
   target: string | null;
 };
 
+/** 管理メンバー。last_sign_in_at: まだ一度もログインしていなければ null */
+export type MemberRow = Omit<Row<"admin_list_members">, "role" | "last_sign_in_at"> & {
+  role: AdminRole;
+  last_sign_in_at: string | null;
+};
+
 /** admin_reveal_invite_code は、平文を持たない以前のコードでは null を返す */
 export type RevealedInviteCode = { code: string | null };
 

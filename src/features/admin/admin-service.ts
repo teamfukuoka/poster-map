@@ -15,10 +15,17 @@ import type {
   CoverageSummaryRow,
   Dashboard,
   InviteCodeRow,
+  MemberRow,
   RevealedInviteCode,
   SiteState,
 } from "./types";
-import { normalizeInviteCode, validateInviteCode, validateLabel } from "./validation";
+import {
+  normalizeInviteCode,
+  normalizeMemberEmail,
+  validateInviteCode,
+  validateLabel,
+  validateMemberEmail,
+} from "./validation";
 
 type Client = SupabaseClient<Database>;
 
@@ -219,6 +226,33 @@ export async function deleteCoverageAssignee(
     p_id: id,
     p_expected_updated_at: expectedUpdatedAt,
   });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
+export async function loadMembers(client: Client): Promise<ActionResult<MemberRow[]>> {
+  const { data, error } = await client.rpc("admin_list_members");
+  if (error) return failure(error);
+  // role は DB の check が admin / operator に限る
+  return { ok: true, data: (data ?? []) as MemberRow[] };
+}
+
+export async function addMember(
+  client: Client,
+  email: string,
+  role: AdminRole,
+): Promise<ActionResult<null>> {
+  const normalized = normalizeMemberEmail(email);
+  // DB でも同じ判定をするが、断れるものは RPC の前に断る（記録も増えない）
+  const message = validateMemberEmail(normalized);
+  if (message) return { ok: false, error: message };
+  const { error } = await client.rpc("admin_add_member", { p_email: normalized, p_role: role });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
+export async function removeMember(client: Client, email: string): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_remove_member", { p_email: email });
   if (error) return failure(error);
   return { ok: true, data: null };
 }

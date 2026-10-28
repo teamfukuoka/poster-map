@@ -8,7 +8,7 @@ import { SITE_NAME_TAG } from "@/lib/site-name";
 import { createClient } from "@/lib/supabase/server";
 import * as service from "./admin-service";
 import { parseRanges } from "./coverage-view";
-import type { CoverageRange, RevealedInviteCode } from "./types";
+import type { AdminRole, CoverageRange, RevealedInviteCode } from "./types";
 
 function invalidInput(): { ok: false; error: string } {
   return { ok: false, error: FALLBACK_MESSAGE };
@@ -20,6 +20,10 @@ function isString(value: unknown): value is string {
 
 function isBoolean(value: unknown): value is boolean {
   return typeof value === "boolean";
+}
+
+function isRole(value: unknown): value is AdminRole {
+  return value === "admin" || value === "operator";
 }
 
 /** 成功したときだけ、管理画面のデータを取り直させる */
@@ -132,4 +136,14 @@ export async function deleteCoverageAssigneeAction(
   return refreshOnSuccess(
     await service.deleteCoverageAssignee(await createClient(), id, expectedUpdatedAt),
   );
+}
+
+export async function addMemberAction(email: string, role: AdminRole): Promise<ActionResult<null>> {
+  if (!isString(email) || !isRole(role)) return invalidInput();
+  return refreshOnSuccess(await service.addMember(await createClient(), email, role));
+}
+
+export async function removeMemberAction(email: string): Promise<ActionResult<null>> {
+  if (!isString(email)) return invalidInput();
+  return refreshOnSuccess(await service.removeMember(await createClient(), email));
 }

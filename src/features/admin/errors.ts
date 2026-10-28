@@ -19,6 +19,11 @@ const MESSAGES: Record<string, string> = {
   unknown_coverage_place: "選んだ範囲が掲示場のデータにありません。選び直してください。",
   stale_assignee: "ほかの人が先に直しました。開き直してください",
   assignee_not_found: "この担当者はもう外されています。開き直してください",
+  invalid_member_email: "メールアドレスの形になっていません。入れ直してください。",
+  invalid_member_role: "役割を選んでください。",
+  duplicate_member: "このメールアドレスはもう登録されています。",
+  member_not_found: "この人はもう外されています。画面を更新してください。",
+  cannot_remove_self: "自分自身は外せません。ほかの管理者に頼んでください。",
 };
 
 /** 管理画面の RPC の例外を、画面に出す文言にする */

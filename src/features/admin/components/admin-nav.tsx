@@ -10,6 +10,7 @@ const ITEMS: Item[] = [
   { href: "/admin/codes", label: "参加コード" },
   { href: "/admin/coverage", label: "カバー地域" },
   { href: "/admin/site", label: "公開とリセット", adminOnly: true },
+  { href: "/admin/members", label: "管理メンバー", adminOnly: true },
   { href: "/admin/audit", label: "操作の記録" },
 ];
 

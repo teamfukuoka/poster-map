@@ -9,6 +9,8 @@ const ACTION_LABELS: Record<string, string> = {
   coverage_assignee_create: "担当者の登録",
   coverage_assignee_update: "担当者の変更",
   coverage_assignee_delete: "担当者を外す",
+  add_admin_member: "管理メンバーの登録",
+  remove_admin_member: "管理メンバーを外す",
 };
 
 /** 操作の記録の「操作」。知らない操作はそのまま出す */

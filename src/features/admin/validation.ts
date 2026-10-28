@@ -32,3 +32,21 @@ export function validateLabel(label: string): string | null {
   const length = [...label].length;
   return length >= 1 && length <= LABEL_MAX_LENGTH ? null : LABEL_MESSAGE;
 }
+
+// DB の admin_add_member と同じ決まり
+export const MEMBER_EMAIL_MAX_LENGTH = 254;
+const MEMBER_EMAIL_MESSAGE = "メールアドレスの形になっていません。入れ直してください。";
+
+/** 管理メンバーのメール。全角を半角にし、前後の空白を落として小文字にそろえる（DB でも同じことをする） */
+export function normalizeMemberEmail(raw: string): string {
+  return raw.normalize("NFKC").trim().toLowerCase();
+}
+
+/** 正規化（normalizeMemberEmail）済みの値を調べる。問題があれば文言、なければ null */
+export function validateMemberEmail(email: string): string | null {
+  const ok =
+    email.length <= MEMBER_EMAIL_MAX_LENGTH &&
+    /^[!-~]+$/.test(email) &&
+    /^[^@]+@[^@]+\.[^@]+$/.test(email);
+  return ok ? null : MEMBER_EMAIL_MESSAGE;
+}

@@ -46,6 +46,15 @@ export const HELP_SECTIONS = [
       { id: "site-reset", title: "報告をまとめて戻す" },
     ],
   },
+  {
+    id: "members",
+    title: "管理メンバー",
+    href: "/admin/members",
+    topics: [
+      { id: "members-add", title: "管理メンバーを登録する" },
+      { id: "members-list", title: "管理画面に入れる人" },
+    ],
+  },
   { id: "audit", title: "操作の記録", href: "/admin/audit" },
   { id: "day1", title: "11月1日の流れ" },
   { id: "daily", title: "毎日の確認" },

@@ -1,4 +1,5 @@
 import {
+  addMember,
   createCoverageAssignee,
   deleteCoverageAssignee,
   getAdminRole,
@@ -6,8 +7,10 @@ import {
   loadCoverage,
   loadDashboard,
   loadInviteCodes,
+  loadMembers,
   publishSite,
   registerInviteCode,
+  removeMember,
   resetRehearsal,
   revealInviteCode,
   revertAcceptance,
@@ -1375,5 +1378,208 @@ describe("admin service", () => {
       ok: false,
       error: "11月1日0:00を過ぎたため、報告をまとめて戻すことはできません。",
     });
+  });
+});
+
+// ---- 管理メンバー ------------------------------------------------------------
+
+async function memberRole(email: string): Promise<string | null> {
+  return withPg(async (db) => {
+    const result = await db.query<{ role: string }>(
+      "select role from private.admin_members where email = $1",
+      [email],
+    );
+    return result.rows[0]?.role ?? null;
+  });
+}
+
+describe("管理メンバー", () => {
+  test("運営は forbidden・一覧にない人は not_admin・何も変わらない", async () => {
+    const { client: operator, email } = await signInStaff("operator");
+    const { client: outsider } = await signInStaff(null);
+    for (const client of [operator, outsider]) {
+      const expected = client === operator ? "forbidden" : "not_admin";
+      expect((await client.rpc("admin_list_members")).error?.message).toBe(expected);
+      expect(
+        (
+          await client.rpc("admin_add_member", {
+            p_email: "new@example.invalid",
+            p_role: "admin",
+          })
+        ).error?.message,
+      ).toBe(expected);
+      expect((await client.rpc("admin_remove_member", { p_email: email })).error?.message).toBe(
+        expected,
+      );
+    }
+    expect(await memberRole("new@example.invalid")).toBeNull();
+    expect(await memberRole(email)).toBe("operator");
+  });
+
+  test("一覧: 管理者が先・自分の行に印・まだログインしていない人は null", async () => {
+    const { client, email } = await signInStaff("admin");
+    await signInStaff("operator", { email: "logged-in@example.invalid" });
+    await withPg((db) =>
+      db.query("insert into private.admin_members (email, role) values ($1, 'operator')", [
+        "never@example.invalid",
+      ]),
+    );
+    const result = await loadMembers(client);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map((row) => [row.email, row.role, row.is_self])).toEqual([
+      [email.toLowerCase(), "admin", true],
+      ["logged-in@example.invalid", "operator", false],
+      ["never@example.invalid", "operator", false],
+    ]);
+    expect(result.data[0].last_sign_in_at).not.toBeNull();
+    expect(result.data[1].last_sign_in_at).not.toBeNull();
+    expect(result.data[2].last_sign_in_at).toBeNull();
+  });
+
+  test("一覧: 匿名ユーザーのログインは数えない", async () => {
+    const { client } = await signInStaff("admin");
+    await withPg((db) =>
+      db.query("insert into private.admin_members (email, role) values ($1, 'operator')", [
+        "anon-like@example.invalid",
+      ]),
+    );
+    const { userId } = await signInAnon();
+    await withPg((db) =>
+      db.query("update auth.users set email = $1, last_sign_in_at = now() where id = $2", [
+        "anon-like@example.invalid",
+        userId,
+      ]),
+    );
+    const result = await loadMembers(client);
+    expect(
+      result.ok && result.data.find((r) => r.email === "anon-like@example.invalid"),
+    ).toMatchObject({ last_sign_in_at: null });
+  });
+
+  test("登録: 全角・前後の空白・大文字をそろえる・記録が残る・登録した人は入れる", async () => {
+    const { client, email } = await signInStaff("admin");
+    const result = await addMember(client, "　ＮＥＷ-Member@Example.invalid ", "operator");
+    expect(result).toEqual({ ok: true, data: null });
+    expect(await memberRole("new-member@example.invalid")).toBe("operator");
+    expect(await auditRows("add_admin_member")).toEqual([
+      { actor_email: email.toLowerCase(), target: "new-member@example.invalid（運営）" },
+    ]);
+
+    const { client: added } = await signInStaff(null, { email: "new-member@example.invalid" });
+    expect((await added.rpc("admin_whoami")).data).toBe("operator");
+  });
+
+  test("登録: 管理者の記録は（管理者）", async () => {
+    const { client } = await signInStaff("admin");
+    expect(
+      (await client.rpc("admin_add_member", { p_email: "a2@example.invalid", p_role: "admin" }))
+        .error,
+    ).toBeNull();
+    expect(await memberRole("a2@example.invalid")).toBe("admin");
+    expect((await auditRows("add_admin_member"))[0].target).toBe("a2@example.invalid（管理者）");
+  });
+
+  test.each([
+    [""],
+    ["   "],
+    ["no-at-mark.example.invalid"],
+    ["two@@example.invalid"],
+    ["no-dot@example"],
+    ["space in@example.invalid"],
+    ["日本語@example.invalid"],
+    [`${"a".repeat(243)}@example.invalid`],
+  ])("登録: メールの形でなければ invalid_member_email（%p）", async (value) => {
+    const { client } = await signInStaff("admin");
+    const { error } = await client.rpc("admin_add_member", { p_email: value, p_role: "operator" });
+    expect(error?.message).toBe("invalid_member_email");
+    expect(await auditRows("add_admin_member")).toEqual([]);
+  });
+
+  test("登録: 254文字までは通る", async () => {
+    const { client } = await signInStaff("admin");
+    const value = `${"a".repeat(238)}@example.invalid`;
+    expect(value).toHaveLength(254);
+    expect(
+      (await client.rpc("admin_add_member", { p_email: value, p_role: "operator" })).error,
+    ).toBeNull();
+  });
+
+  test.each([
+    ["owner"],
+    [""],
+    ["Admin"],
+  ])("登録: 役割が違えば invalid_member_role（%p）", async (role) => {
+    const { client } = await signInStaff("admin");
+    const { error } = await client.rpc("admin_add_member", {
+      p_email: "x@example.invalid",
+      p_role: role,
+    });
+    expect(error?.message).toBe("invalid_member_role");
+    expect(await memberRole("x@example.invalid")).toBeNull();
+  });
+
+  test("登録: もういる人は duplicate_member・役割は変わらない", async () => {
+    const { client } = await signInStaff("admin");
+    await signInStaff("operator", { email: "dup@example.invalid" });
+    const result = await addMember(client, "DUP@example.invalid", "admin");
+    expect(result).toEqual({ ok: false, error: "このメールアドレスはもう登録されています。" });
+    expect(await memberRole("dup@example.invalid")).toBe("operator");
+    expect(await auditRows("add_admin_member")).toEqual([]);
+  });
+
+  test("外す: 外した人は次の呼び出しから入れない・記録が残る", async () => {
+    const { client, email } = await signInStaff("admin");
+    const { client: other, email: otherEmail } = await signInStaff("operator");
+    expect(await removeMember(client, otherEmail.toLowerCase())).toEqual({ ok: true, data: null });
+    expect(await memberRole(otherEmail.toLowerCase())).toBeNull();
+    expect((await other.rpc("admin_whoami")).data).toBe(null);
+    expect(await auditRows("remove_admin_member")).toEqual([
+      { actor_email: email.toLowerCase(), target: otherEmail.toLowerCase() },
+    ]);
+  });
+
+  test("外す: 大文字・前後の空白があっても外せる", async () => {
+    const { client } = await signInStaff("admin");
+    await signInStaff("admin", { email: "upper@example.invalid" });
+    expect(
+      (await client.rpc("admin_remove_member", { p_email: " UPPER@example.invalid " })).error,
+    ).toBeNull();
+    expect(await memberRole("upper@example.invalid")).toBeNull();
+  });
+
+  test("外す: 自分自身は cannot_remove_self・残る", async () => {
+    const { client, email } = await signInStaff("admin", { email: "Self@Example.invalid" });
+    expect((await client.rpc("admin_remove_member", { p_email: email })).error?.message).toBe(
+      "cannot_remove_self",
+    );
+    expect(await memberRole("self@example.invalid")).toBe("admin");
+    expect(await auditRows("remove_admin_member")).toEqual([]);
+  });
+
+  test("外す: いない人は member_not_found", async () => {
+    const { client } = await signInStaff("admin");
+    const result = await removeMember(client, "gone@example.invalid");
+    expect(result).toEqual({
+      ok: false,
+      error: "この人はもう外されています。画面を更新してください。",
+    });
+  });
+
+  test("外す: 管理者2人が同時に外し合っても、どちらかは残る", async () => {
+    const { client: a, email: emailA } = await signInStaff("admin");
+    const { client: b, email: emailB } = await signInStaff("admin");
+    const [ra, rb] = await Promise.all([
+      a.rpc("admin_remove_member", { p_email: emailB.toLowerCase() }),
+      b.rpc("admin_remove_member", { p_email: emailA.toLowerCase() }),
+    ]);
+    const errors = [ra.error?.message, rb.error?.message];
+    expect(errors.filter((e) => e === undefined)).toHaveLength(1);
+    expect(errors).toContain("not_admin");
+    const remaining = await withPg(async (db) => {
+      const result = await db.query("select email from private.admin_members");
+      return result.rowCount;
+    });
+    expect(remaining).toBe(1);
   });
 });

@@ -2,10 +2,13 @@ import {
   INVITE_CODE_MAX_LENGTH,
   INVITE_CODE_MIN_LENGTH,
   LABEL_MAX_LENGTH,
+  MEMBER_EMAIL_MAX_LENGTH,
   normalizeInviteCode,
+  normalizeMemberEmail,
   RESET_CONFIRM_WORD,
   validateInviteCode,
   validateLabel,
+  validateMemberEmail,
 } from "./validation";
 
 test("定数", () => {
@@ -54,5 +57,37 @@ describe("validateLabel", () => {
   test("1文字・50文字は通る", () => {
     expect(validateLabel("あ")).toBeNull();
     expect(validateLabel("あ".repeat(50))).toBeNull();
+  });
+});
+
+describe("normalizeMemberEmail", () => {
+  test("全角を半角に・前後の空白を落とし・小文字にそろえる", () => {
+    expect(normalizeMemberEmail("　ＮＥＷ-Member@Example.invalid \n")).toBe(
+      "new-member@example.invalid",
+    );
+  });
+});
+
+describe("validateMemberEmail", () => {
+  test.each([
+    "a@example.invalid",
+    "first.last+tag@sub.example.invalid",
+    `${"a".repeat(MEMBER_EMAIL_MAX_LENGTH - 16)}@example.invalid`,
+  ])("%s は通る", (email) => {
+    expect(validateMemberEmail(email)).toBeNull();
+  });
+
+  test.each([
+    "",
+    "no-at-mark.example.invalid",
+    "two@@example.invalid",
+    "no-dot@example",
+    "space in@example.invalid",
+    "日本語@example.invalid",
+    `${"a".repeat(MEMBER_EMAIL_MAX_LENGTH - 15)}@example.invalid`,
+  ])("%p は通らない", (email) => {
+    expect(validateMemberEmail(email)).toBe(
+      "メールアドレスの形になっていません。入れ直してください。",
+    );
   });
 });

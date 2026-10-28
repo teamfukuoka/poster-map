@@ -118,6 +118,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_add_member: {
+        Args: { p_email: string; p_role: string }
+        Returns: undefined
+      }
       admin_coverage_assignees: {
         Args: never
         Returns: {
@@ -195,6 +199,16 @@ export type Database = {
           volunteers: number
         }[]
       }
+      admin_list_members: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          is_self: boolean
+          last_sign_in_at: string
+          role: string
+        }[]
+      }
       admin_publish: { Args: { p_confirm: string }; Returns: undefined }
       admin_recent_audit_log: {
         Args: never
@@ -225,6 +239,7 @@ export type Database = {
         Args: { p_code: string; p_label: string }
         Returns: string
       }
+      admin_remove_member: { Args: { p_email: string }; Returns: undefined }
       admin_reset_rehearsal: { Args: { p_confirm: string }; Returns: undefined }
       admin_reveal_invite_code: { Args: { p_id: string }; Returns: string }
       admin_revert_acceptance: {

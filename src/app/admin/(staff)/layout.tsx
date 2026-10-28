@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { AdminNav } from "@/features/admin/components/admin-nav";
 import { LogoutButton } from "@/features/admin/components/logout-button";
 import { HELP_PATH } from "@/features/admin/help-sections";
+import { ROLE_LABELS } from "@/features/admin/role-labels";
 import { getStaffSession } from "@/features/admin/staff-session";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
-
-const ROLE_LABELS = { admin: "管理者", operator: "運営" } as const;
 
 // /admin/login はこの (staff) の外にあるので、ここからの redirect は繰り返さない。
 // 子ページは遷移のたびに描き直されないことがあるため、守りの本体は DB（RPC が役割を確かめる）。

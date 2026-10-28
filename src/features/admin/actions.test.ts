@@ -2,8 +2,10 @@ import { revalidatePath, updateTag } from "next/cache";
 import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
 import { createClient } from "@/lib/supabase/server";
 import {
+  addMemberAction,
   publishSiteAction,
   registerInviteCodeAction,
+  removeMemberAction,
   resetRehearsalAction,
   revealInviteCodeAction,
   revertAcceptanceAction,
@@ -23,6 +25,8 @@ jest.mock("./admin-service", () => ({
   publishSite: jest.fn(),
   revertAcceptance: jest.fn(),
   resetRehearsal: jest.fn(),
+  addMember: jest.fn(),
+  removeMember: jest.fn(),
 }));
 
 const client = { fake: true };
@@ -187,5 +191,61 @@ describe("resetRehearsalAction", () => {
   test.each([[1], [null], [undefined], [true]])("文字列でなければ失敗を返す（%p）", async (v) => {
     await expect(call(resetRehearsalAction, v)).resolves.toEqual(invalid);
     expect(service.resetRehearsal).not.toHaveBeenCalled();
+  });
+});
+
+describe("addMemberAction", () => {
+  test.each([
+    ["admin"],
+    ["operator"],
+  ] as const)("文字列と役割（%s）なら service に渡し、成功したら revalidate する", async (role) => {
+    jest.mocked(service.addMember).mockResolvedValue({ ok: true, data: null });
+    await expect(addMemberAction("a@example.invalid", role)).resolves.toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(service.addMember).toHaveBeenCalledWith(client, "a@example.invalid", role);
+    expect(revalidatePath).toHaveBeenCalledWith("/admin", "layout");
+  });
+
+  test("失敗なら revalidate しない", async () => {
+    jest.mocked(service.addMember).mockResolvedValue(failure);
+    await expect(addMemberAction("a@example.invalid", "operator")).resolves.toEqual(failure);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [1, "admin"],
+    ["a@example.invalid", "owner"],
+    ["a@example.invalid", "Admin"],
+    ["a@example.invalid", null],
+    [undefined, "operator"],
+  ])("型か役割が違えば失敗を返す（%p, %p）", async (email, role) => {
+    await expect(call(addMemberAction, email, role)).resolves.toEqual(invalid);
+    expect(service.addMember).not.toHaveBeenCalled();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+});
+
+describe("removeMemberAction", () => {
+  test("文字列なら service に渡し、成功したら revalidate する", async () => {
+    jest.mocked(service.removeMember).mockResolvedValue({ ok: true, data: null });
+    await expect(removeMemberAction("a@example.invalid")).resolves.toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(service.removeMember).toHaveBeenCalledWith(client, "a@example.invalid");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin", "layout");
+  });
+
+  test("失敗なら revalidate しない", async () => {
+    jest.mocked(service.removeMember).mockResolvedValue(failure);
+    await expect(removeMemberAction("a@example.invalid")).resolves.toEqual(failure);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  test.each([[1], [null], [undefined], [{}]])("文字列でなければ失敗を返す（%p）", async (email) => {
+    await expect(call(removeMemberAction, email)).resolves.toEqual(invalid);
+    expect(service.removeMember).not.toHaveBeenCalled();
   });
 });
