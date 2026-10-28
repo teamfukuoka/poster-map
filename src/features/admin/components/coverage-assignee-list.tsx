@@ -137,7 +137,9 @@ export function CoverageAssigneeList({
         }}
         title={`${target?.label ?? ""}を外しますか`}
         description={
-          <p>外すと、この担当者の範囲は担当なしに戻ります。掲示場そのものは消えません。</p>
+          <p>
+            外すと、この担当者の範囲から外れます。ほかの担当者・予約がない掲示場は担当なしになります。掲示場そのものは消えません。
+          </p>
         }
         confirmLabel="外す"
         destructive

@@ -49,6 +49,11 @@ describe("coverageTooltipHtml", () => {
     );
   });
 
+  it("丁目は数字だけのデータに「丁目」を付けて出す", () => {
+    const html = coverageTooltipHtml(board({ board_id: "b4", town: "馬出", chome: "3" }));
+    expect(html).toContain("町名: 馬出 3丁目");
+  });
+
   it("校区・町名の表にない掲示場は空欄でなく「不明」", () => {
     const html = coverageTooltipHtml(
       board({ board_id: "b3", school: null, town: null, chome: null }),

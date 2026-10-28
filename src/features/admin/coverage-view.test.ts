@@ -1,6 +1,7 @@
 import {
   boardsInRow,
   buildPlaces,
+  chomeLabel,
   chomeRowsOf,
   filterAssignees,
   filterSummary,
@@ -56,7 +57,7 @@ describe("rangeLabel", () => {
     expect(rangeLabel(range({ kind: "ward", ward: "東区" }))).toBe("東区");
     expect(rangeLabel(range({ kind: "school", school: "馬出小" }))).toBe("馬出小（校区）");
     expect(rangeLabel(range({ kind: "town", ward: "東区", town: "馬出" }))).toBe("東区 馬出");
-    expect(rangeLabel(range({ kind: "chome", ward: "東区", town: "馬出", chome: "3丁目" }))).toBe(
+    expect(rangeLabel(range({ kind: "chome", ward: "東区", town: "馬出", chome: "3" }))).toBe(
       "東区 馬出 3丁目",
     );
   });
@@ -80,6 +81,10 @@ describe("parseRanges", () => {
   });
 });
 
+test("chomeLabel は数字に「丁目」を付ける", () => {
+  expect(chomeLabel("3")).toBe("3丁目");
+});
+
 describe("buildPlaces と searchPlaces", () => {
   const summary: CoverageSummaryRow[] = [
     row({ unit: "ward", ward: "東区", total: 100 }),
@@ -87,8 +92,8 @@ describe("buildPlaces と searchPlaces", () => {
     row({ unit: "school", ward: "博多区", school: "宮竹小", total: 2 }),
     row({ unit: "school", ward: "東区", school: null, total: 7 }),
     row({ unit: "town", ward: "東区", town: "馬出", total: 10 }),
-    row({ unit: "chome", ward: "東区", town: "馬出", chome: "10丁目", total: 1 }),
-    row({ unit: "chome", ward: "東区", town: "馬出", chome: "1丁目", total: 4 }),
+    row({ unit: "chome", ward: "東区", town: "馬出", chome: "10", total: 1 }),
+    row({ unit: "chome", ward: "東区", town: "馬出", chome: "1", total: 4 }),
   ];
 
   test("校区は区をまたいで 1 つにまとめる", () => {
@@ -106,14 +111,38 @@ describe("buildPlaces と searchPlaces", () => {
 
   test("検索は前後の空白を取り、kind の順、次に label の順", () => {
     const places = buildPlaces(summary);
-    expect(searchPlaces(places, " 馬出 ").map((p) => p.label)).toEqual([
+    expect(searchPlaces(places, " 馬出 ").places.map((p) => p.label)).toEqual([
       "東区 馬出",
       "東区 馬出 1丁目",
       "東区 馬出 10丁目",
     ]);
-    expect(searchPlaces(places, "")).toEqual([]);
-    expect(searchPlaces(places, "   ")).toEqual([]);
-    expect(searchPlaces(places, "区", 2)).toHaveLength(2);
+    expect(searchPlaces(places, "")).toEqual({ places: [], more: 0 });
+    expect(searchPlaces(places, "   ")).toEqual({ places: [], more: 0 });
+  });
+
+  test("検索は空白（半角・全角）を無視する", () => {
+    const places = buildPlaces(summary);
+    expect(searchPlaces(places, "東区馬出").places.map((p) => p.label)).toContain("東区 馬出");
+    expect(searchPlaces(places, "東区　馬 出").places.map((p) => p.label)).toContain("東区 馬出");
+  });
+
+  test("丁目の場所は「3丁目」「馬出1丁目」でも見つかる", () => {
+    const places = buildPlaces(summary);
+    expect(searchPlaces(places, "1丁目").places.map((p) => p.label)).toEqual(["東区 馬出 1丁目"]);
+    expect(searchPlaces(places, "馬出1丁目").places.map((p) => p.label)).toEqual([
+      "東区 馬出 1丁目",
+    ]);
+    expect(searchPlaces(places, "馬出 10丁目").places.map((p) => p.label)).toEqual([
+      "東区 馬出 10丁目",
+    ]);
+  });
+
+  test("上限で切ったら、残りの件数を more で返す", () => {
+    const places = buildPlaces(summary);
+    const result = searchPlaces(places, "区", 2);
+    expect(result.places).toHaveLength(2);
+    expect(result.more).toBe(3);
+    expect(searchPlaces(places, "区", 20).more).toBe(0);
   });
 });
 
@@ -125,9 +154,9 @@ describe("filterSummary など", () => {
     row({ unit: "town", ward: "東区", town: "A", total: 4, none: 1 }),
     row({ unit: "town", ward: "東区", town: "C", total: 4, none: 5 }),
     row({ unit: "town", ward: "東区", town: "D", total: 4, none: 0 }),
-    row({ unit: "chome", ward: "東区", town: "C", chome: "2丁目", total: 1 }),
-    row({ unit: "chome", ward: "東区", town: "C", chome: "10丁目", total: 1 }),
-    row({ unit: "chome", ward: "東区", town: "C", chome: "1丁目", total: 1 }),
+    row({ unit: "chome", ward: "東区", town: "C", chome: "2", total: 1 }),
+    row({ unit: "chome", ward: "東区", town: "C", chome: "10", total: 1 }),
+    row({ unit: "chome", ward: "東区", town: "C", chome: "1", total: 1 }),
   ];
 
   test("onlyGaps で none=0 が消え、none の多い順・同じなら区の順・地名の順", () => {
@@ -139,11 +168,7 @@ describe("filterSummary など", () => {
     expect(out.map((r) => r.town)).toEqual(["C", "A", "D"]);
   });
   test("chomeRowsOf は丁目の数の順", () => {
-    expect(chomeRowsOf(rows, "東区", "C").map((r) => r.chome)).toEqual([
-      "1丁目",
-      "2丁目",
-      "10丁目",
-    ]);
+    expect(chomeRowsOf(rows, "東区", "C").map((r) => r.chome)).toEqual(["1", "2", "10"]);
   });
   test("totalsOf は区の行を足す", () => {
     expect(totalsOf(rows)).toEqual({ total: 30, assigned: 25, reserved: 2, none: 3 });
@@ -170,9 +195,9 @@ describe("boardsInRow", () => {
       ...b,
     }) as CoverageBoard;
   const boards = [
-    board({ number: "1", ward: "東区", school: "馬出小", town: "馬出", chome: "1丁目" }),
-    board({ number: "2", ward: "東区", school: "馬出小", town: "馬出", chome: "2丁目" }),
-    board({ number: "3", ward: "南区", school: "馬出小", town: "馬出", chome: "1丁目" }),
+    board({ number: "1", ward: "東区", school: "馬出小", town: "馬出", chome: "1" }),
+    board({ number: "2", ward: "東区", school: "馬出小", town: "馬出", chome: "2" }),
+    board({ number: "3", ward: "南区", school: "馬出小", town: "馬出", chome: "1" }),
     board({ number: "4", ward: "東区" }),
   ];
   test("単位ごとに当たる掲示場を返す", () => {
@@ -180,7 +205,7 @@ describe("boardsInRow", () => {
     expect(pick(row({ unit: "ward", ward: "東区" }))).toEqual(["1", "2", "4"]);
     expect(pick(row({ unit: "school", ward: "東区", school: "馬出小" }))).toEqual(["1", "2"]);
     expect(pick(row({ unit: "town", ward: "東区", town: "馬出" }))).toEqual(["1", "2"]);
-    expect(pick(row({ unit: "chome", ward: "東区", town: "馬出", chome: "1丁目" }))).toEqual(["1"]);
+    expect(pick(row({ unit: "chome", ward: "東区", town: "馬出", chome: "1" }))).toEqual(["1"]);
     expect(pick(row({ unit: "school", ward: "東区", school: null }))).toEqual(["4"]);
   });
 });

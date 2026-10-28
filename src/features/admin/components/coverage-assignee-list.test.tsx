@@ -66,6 +66,9 @@ test("「外す」は確認を挟み、id と updated_at を文字列のまま�
   fireEvent.click(screen.getByRole("button", { name: "A班を外す" }));
   const dialog = await screen.findByRole("dialog");
   expect(mockedDelete).not.toHaveBeenCalled();
+  expect(dialog).toHaveTextContent(
+    "この担当者の範囲から外れます。ほかの担当者・予約がない掲示場は担当なしになります。",
+  );
   await act(async () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "外す" }));
   });

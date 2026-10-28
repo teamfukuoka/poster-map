@@ -33,7 +33,7 @@ export const row = (
 export const board = (b: Partial<CoverageBoard> & { board_id: string }): CoverageBoard => ({
   address: "福岡市東区馬出1-1",
   assignee_labels: [],
-  chome: "1丁目",
+  chome: "1",
   coverage: "none",
   lat: 33.6,
   long: 130.4,
@@ -80,8 +80,8 @@ export const SUMMARY: CoverageSummaryRow[] = [
   }),
   row({ unit: "town", ward: "東区", town: "箱崎", total: 4, reserved: 2, none: 2 }),
   row({ unit: "town", ward: "南区", town: "桧原", total: 5, assigned: 5, none: 0 }),
-  row({ unit: "chome", ward: "東区", town: "馬出", chome: "1丁目", total: 4, assigned: 4 }),
-  row({ unit: "chome", ward: "東区", town: "馬出", chome: "2丁目", total: 2, none: 2 }),
+  row({ unit: "chome", ward: "東区", town: "馬出", chome: "1", total: 4, assigned: 4 }),
+  row({ unit: "chome", ward: "東区", town: "馬出", chome: "2", total: 2, none: 2 }),
 ];
 
 export const BOARDS: CoverageBoard[] = [
@@ -90,7 +90,7 @@ export const BOARDS: CoverageBoard[] = [
     board_id: "b2",
     number: "東-002",
     address: "福岡市東区馬出2-2",
-    chome: "2丁目",
+    chome: "2",
     coverage: "none",
     status: "done",
   }),
@@ -99,7 +99,7 @@ export const BOARDS: CoverageBoard[] = [
     number: "東-003",
     address: "福岡市東区箱崎3-3",
     town: "箱崎",
-    chome: "3丁目",
+    chome: "3",
     school: null,
     coverage: "reserved",
     status: "reserved",

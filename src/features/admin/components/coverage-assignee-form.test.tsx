@@ -68,6 +68,35 @@ test("「馬出」と打つと候補に種類と掲示場の数が出る", () =>
   expect(screen.getByRole("button", { name: /^東区 馬出 1丁目 丁目/ })).toBeInTheDocument();
 });
 
+test("空白を入れずに「東区馬出」と打っても、「3丁目」と打っても見つかる", () => {
+  renderForm();
+  type("地名で探す", "東区馬出");
+  expect(screen.getByRole("button", { name: /^東区 馬出 町名/ })).toBeInTheDocument();
+  type("地名で探す", "1丁目");
+  expect(screen.getByRole("button", { name: /^東区 馬出 1丁目 丁目/ })).toBeInTheDocument();
+});
+
+test("候補が上限で切れたら、残りの件数を知らせる", () => {
+  const many = Array.from({ length: 25 }, (_, i) => ({
+    unit: "town" as const,
+    ward: "東区",
+    school: null,
+    town: `町${String(i).padStart(2, "0")}`,
+    chome: null,
+    total: 1,
+    assigned: 0,
+    reserved: 0,
+    none: 1,
+    assignee_labels: [],
+  }));
+  render(<CoverageAssigneeForm places={buildPlaces(many)} assignees={[]} />);
+  type("地名で探す", "町");
+  expect(screen.getAllByRole("button", { name: /^東区 町\d\d 町名/ })).toHaveLength(20);
+  expect(screen.getByText("ほか 5 件。もう少し詳しく入れてください")).toBeInTheDocument();
+  type("地名で探す", "町00");
+  expect(screen.queryByText(/もう少し詳しく/)).not.toBeInTheDocument();
+});
+
 test("候補を押すと「選んだ範囲」に足され、× で外せる。同じ範囲は 2 回足されない", () => {
   renderForm();
   addBySearch("馬出", /^東区 馬出 町名/);

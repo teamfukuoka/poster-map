@@ -62,6 +62,11 @@ export function parseRanges(value: unknown): CoverageRange[] | null {
   return out;
 }
 
+/** board_areas.chome は数字だけ（"3"）。画面には「3丁目」と出す */
+export function chomeLabel(chome: string): string {
+  return `${chome}丁目`;
+}
+
 export function rangeLabel(r: CoverageRange): string {
   switch (r.kind) {
     case "ward":
@@ -71,7 +76,7 @@ export function rangeLabel(r: CoverageRange): string {
     case "town":
       return `${r.ward ?? ""} ${r.town ?? ""}`;
     case "chome":
-      return `${r.ward ?? ""} ${r.town ?? ""} ${r.chome ?? ""}`;
+      return `${r.ward ?? ""} ${r.town ?? ""} ${r.chome === null ? "" : chomeLabel(r.chome)}`;
   }
 }
 
@@ -134,14 +139,25 @@ export function buildPlaces(summary: CoverageSummaryRow[]): Place[] {
   return places;
 }
 
-/** label に query（前後の空白を除く）を含む場所。kind の順、次に label の順。空なら [] */
-export function searchPlaces(places: Place[], query: string, limit = 20): Place[] {
-  const q = query.trim();
-  if (q === "") return [];
-  return places
-    .filter((p) => p.label.includes(q))
-    .sort((a, b) => kindOrder(a.kind) - kindOrder(b.kind) || compareText(a.label, b.label))
-    .slice(0, limit);
+function stripSpaces(text: string): string {
+  return text.replace(/[\s\u3000]+/g, "");
+}
+
+/**
+ * label に query を含む場所。空白（半角・全角）は query にも label にも無視する。
+ * kind の順、次に label の順に並べ、limit 件まで。切った残りの件数を more で返す。query が空なら空
+ */
+export function searchPlaces(
+  places: Place[],
+  query: string,
+  limit = 20,
+): { places: Place[]; more: number } {
+  const q = stripSpaces(query);
+  if (q === "") return { places: [], more: 0 };
+  const hits = places
+    .filter((p) => stripSpaces(p.label).includes(q))
+    .sort((a, b) => kindOrder(a.kind) - kindOrder(b.kind) || compareText(a.label, b.label));
+  return { places: hits.slice(0, limit), more: Math.max(0, hits.length - limit) };
 }
 
 function nameOf(r: CoverageSummaryRow): string | null {

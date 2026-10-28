@@ -1,7 +1,7 @@
 "use client";
 import { Fragment, useEffect, useState } from "react";
 import { WARDS } from "@/features/poster-map/area";
-import { boardsInRow, chomeRowsOf, filterSummary, formatShare } from "../coverage-view";
+import { boardsInRow, chomeLabel, chomeRowsOf, filterSummary, formatShare } from "../coverage-view";
 import type { CoverageBoard, CoverageKind, CoverageSummaryRow } from "../types";
 
 const TH = "py-1 pr-3 font-normal whitespace-nowrap";
@@ -42,7 +42,7 @@ export function rowName(r: CoverageSummaryRow): string {
     case "town":
       return r.town ?? "町名なし";
     case "chome":
-      return r.chome ?? "丁目なし";
+      return r.chome === null ? "丁目なし" : chomeLabel(r.chome);
   }
 }
 

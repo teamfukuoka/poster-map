@@ -1,5 +1,6 @@
 // カバー地域の地図用の純関数。Leaflet・Next.js に依存しない。
 import { escapeHtml } from "@/features/poster-map/html";
+import { chomeLabel } from "./coverage-view";
 import type { CoverageBoard, CoverageStatus } from "./types";
 
 /**
@@ -26,7 +27,9 @@ export function markerStyle(c: CoverageStatus): {
 
 /** 地図の点のツールチップ。値はすべて escapeHtml を通す */
 export function coverageTooltipHtml(b: CoverageBoard): string {
-  const town = [b.town, b.chome].filter((v): v is string => !!v).join(" ");
+  const town = [b.town, b.chome ? chomeLabel(b.chome) : null]
+    .filter((v): v is string => !!v)
+    .join(" ");
   const assignees = b.assignee_labels.length > 0 ? b.assignee_labels.join("、") : "担当なし";
   const lines = [
     `<strong>${escapeHtml(b.name ? `${b.number} ${b.name}` : b.number)}</strong>`,

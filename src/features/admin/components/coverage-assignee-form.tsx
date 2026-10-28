@@ -50,7 +50,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
   const sending = useRef(false);
 
   const chosenKeys = new Set(ranges.map(rangeKey));
-  const candidates = searchPlaces(places, query);
+  const { places: candidates, more } = searchPlaces(places, query);
   const wardPlaces = places.filter(
     (p) =>
       (p.kind === "school" && p.wards.includes(ward)) ||
@@ -183,6 +183,11 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
               );
             })}
           </ul>
+        )}
+        {more > 0 && (
+          <p className="text-muted-foreground text-xs">
+            ほか {more} 件。もう少し詳しく入れてください
+          </p>
         )}
       </div>
 
