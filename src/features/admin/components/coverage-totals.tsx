@@ -1,4 +1,4 @@
-import { formatShare, isRehearsalNotePeriod, totalsOf } from "../coverage-view";
+import { formatShare, isRehearsalNotePeriod, REHEARSAL_NOTE, totalsOf } from "../coverage-view";
 import type { CoverageBoard, CoverageSummaryRow } from "../types";
 
 function Tile({ name, value, alert }: { name: string; value: string; alert?: boolean }) {
@@ -36,9 +36,7 @@ export function CoverageTotals({
         />
       </dl>
       {isRehearsalNotePeriod(now) && (
-        <p className="text-muted-foreground text-xs">
-          10/31 までの予約・貼ったはリハーサルの報告です
-        </p>
+        <p className="text-muted-foreground text-xs">{REHEARSAL_NOTE}</p>
       )}
       {missing > 0 && (
         <p role="alert" className="text-destructive text-sm">

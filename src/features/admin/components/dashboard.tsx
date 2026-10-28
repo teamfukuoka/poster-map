@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { isBoardStatus, STATUS_CONFIG } from "@/features/poster-map/status";
-import { formatShare, isRehearsalNotePeriod } from "../coverage-view";
+import { formatShare, isRehearsalNotePeriod, REHEARSAL_NOTE } from "../coverage-view";
 import {
   formatJst,
   isBeforeStaleTable,
@@ -174,9 +174,7 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
           </tbody>
         </table>
         {isRehearsalNotePeriod(now) && (
-          <p className="mt-2 text-muted-foreground text-xs">
-            10/31 までの予約・貼ったはリハーサルの報告です
-          </p>
+          <p className="mt-2 text-muted-foreground text-xs">{REHEARSAL_NOTE}</p>
         )}
       </Section>
     </div>

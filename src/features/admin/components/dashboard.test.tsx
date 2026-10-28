@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import { REHEARSAL_NOTE } from "../coverage-view";
 import type { Dashboard as DashboardData } from "../types";
 import { Dashboard } from "./dashboard";
 
@@ -57,7 +58,35 @@ test("計画と実績は数（割合）で、区の順に並び、最後に合�
 
 test("10/31 まではリハーサルの一行を出し、11/1 からは出さない", () => {
   const { rerender } = render(<Dashboard data={data} now={BEFORE} />);
-  expect(screen.getByText("10/31 までの予約・貼ったはリハーサルの報告です")).toBeInTheDocument();
+  expect(screen.getByText(REHEARSAL_NOTE)).toBeInTheDocument();
   rerender(<Dashboard data={data} now={AFTER} />);
   expect(screen.queryByText(/リハーサルの報告です/)).not.toBeInTheDocument();
+});
+
+test("区が 0 件なら表の代わりに「いまはありません」を出す", () => {
+  render(<Dashboard data={{ ...data, wards: [] }} now={AFTER} />);
+  const section = wardTable();
+  expect(within(section).getByText("いまはありません")).toBeInTheDocument();
+  expect(within(section).queryByRole("table")).not.toBeInTheDocument();
+});
+
+test("全数が 0 の区は「0（—）」になる", () => {
+  render(
+    <Dashboard
+      data={{ ...data, wards: [{ ward: "東区", total: 0, planned: 0, done: 0 }] }}
+      now={AFTER}
+    />,
+  );
+  const cells = within(wardTable())
+    .getAllByRole("row")
+    .slice(1)
+    .map((r) =>
+      within(r)
+        .getAllByRole("cell")
+        .map((c) => c.textContent),
+    );
+  expect(cells).toEqual([
+    ["東区", "0", "0（—）", "0（—）"],
+    ["合計", "0", "0（—）", "0（—）"],
+  ]);
 });

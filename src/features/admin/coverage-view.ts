@@ -225,6 +225,9 @@ export function formatShare(count: number, total: number): string {
  */
 export const REHEARSAL_NOTE_UNTIL = "2026-11-01T00:00:00+09:00";
 
+/** リハーサルの期間に出す一文（カバー地域の画面と最初の画面で同じ） */
+export const REHEARSAL_NOTE = "10/31 までの予約・貼ったはリハーサルの報告です";
+
 export function isRehearsalNotePeriod(now: Date = new Date()): boolean {
   return now < new Date(REHEARSAL_NOTE_UNTIL);
 }

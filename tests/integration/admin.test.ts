@@ -343,9 +343,13 @@ describe("最初の画面", () => {
     await insertBoard("A-2", "reserved");
     await insertBoard("A-3", "done");
     await insertBoard("A-4", "not_yet");
+    await insertBoard("A-5", "done");
+    await insertBoard("A-6", "reserved");
     await insertBoard("B-1", "done", "博多区");
     await insertBoard("B-2", "done", "博多区");
-    await setBoardArea("A-1", { school: "天神小", town: "天神" });
+    for (const number of ["A-1", "A-5", "A-6"]) {
+      await setBoardArea(number, { school: "天神小", town: "天神" });
+    }
     const created = await client.rpc("admin_create_coverage_assignee", {
       p_label: "田中さん",
       p_note: "",
@@ -354,8 +358,9 @@ describe("最初の画面", () => {
     expect(created.error).toBeNull();
     const { data, error } = await client.rpc("admin_ward_progress");
     expect(error).toBeNull();
-    // 担当あり1（not_yet）＋予約あり2（reserved・done・担当なし）= 計画3。実績は done の1
-    expect(data).toContainEqual({ ward: "中央区", total: 4, planned: 3, done: 1 });
+    // 計画 = 担当あり（A-1 not_yet・A-5 done・A-6 reserved）＋担当なしで予約あり（A-2 reserved・A-3 done）= 5。
+    // 担当ありで reserved の A-6 は 1 回だけ数える。実績 = done の A-3・A-5 = 2（A-5 は計画にも実績にも数える）
+    expect(data).toContainEqual({ ward: "中央区", total: 6, planned: 5, done: 2 });
     expect(data).toContainEqual({ ward: "博多区", total: 2, planned: 2, done: 2 });
   });
 

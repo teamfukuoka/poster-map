@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import { REHEARSAL_NOTE } from "../coverage-view";
 import { board, SUMMARY } from "./coverage-fixtures";
 import { CoverageTotals } from "./coverage-totals";
 
@@ -26,7 +27,7 @@ test("担当なしの数は赤い文字", () => {
 
 test("10/31 まではリハーサルの注記を出し、11/1 からは出さない", () => {
   const { rerender } = render(<CoverageTotals summary={SUMMARY} boards={[]} now={BEFORE} />);
-  expect(screen.getByText("10/31 までの予約・貼ったはリハーサルの報告です")).toBeInTheDocument();
+  expect(screen.getByText(REHEARSAL_NOTE)).toBeInTheDocument();
   rerender(<CoverageTotals summary={SUMMARY} boards={[]} now={AFTER} />);
   expect(screen.queryByText(/リハーサルの報告です/)).not.toBeInTheDocument();
 });
