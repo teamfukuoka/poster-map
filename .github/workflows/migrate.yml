@@ -1,15 +1,12 @@
 name: migrate
 
 # DB の migration を Supabase に流す（schema の変更だけ。Auth の設定・掲示場の取り込み・参加コードは手で行う）。
-# - develop に push → 確認用（staging）に流す
 # - main への PR → 流す migration を一覧にし、承認されたら本番（production）に流す。流してから PR をマージする
 #   （DB が先、アプリが後。migration は足すだけにして、古いアプリでも動くようにする）
+#   確認用（staging）の環境は使わない。本番の前の確かめは手元の DB と統合テストで行う
 # 接続先は GitHub の Environment ごとの secret SUPABASE_DB_URL（Session pooler の接続文字列）。
 # 取り違えを防ぐため、同じ Environment の変数 SUPABASE_PROJECT_REF が接続文字列に入っているかを確かめる。
 on:
-  push:
-    branches: [develop]
-    paths: ["supabase/migrations/**"]
   pull_request:
     branches: [main]
     paths: ["supabase/migrations/**"]
@@ -18,7 +15,7 @@ on:
       environment:
         description: 流す先
         type: choice
-        options: [staging, production]
+        options: [production]
         required: true
 
 permissions:
@@ -65,41 +62,6 @@ jobs:
             echo "$oldest_added は $BASE_REF の最新（$latest_base）より古い日時です。ファイル名の日時を新しくしてください。" >&2
             exit 1
           fi
-
-  staging:
-    needs: plan
-    if: github.event_name == 'push' || inputs.environment == 'staging'
-    runs-on: ubuntu-latest
-    environment: staging
-    concurrency:
-      group: migrate-staging
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb  # v1.7.3（秘密情報を扱う job なので commit で固定する）
-        with:
-          version: 2.72.7
-      - name: 接続先を確かめる
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
-        run: |
-          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$SUPABASE_PROJECT_REF" ]; then
-            echo "Environment staging の SUPABASE_DB_URL と SUPABASE_PROJECT_REF を設定してください" >&2
-            exit 1
-          fi
-          case "$SUPABASE_DB_URL" in
-            *"postgres.$SUPABASE_PROJECT_REF:"*) ;;
-            *) echo "SUPABASE_DB_URL が staging のプロジェクト（$SUPABASE_PROJECT_REF）の Session pooler を指していません" >&2; exit 1 ;;
-          esac
-      - name: 流す前の確認（dry-run）
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
-      - name: 流す
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes
 
   # Environment production に承認者（required reviewers）を設定し、承認されるまで動かないようにする。
   # 手で流すとき（workflow_dispatch）は main からだけ

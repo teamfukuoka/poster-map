@@ -2,7 +2,8 @@ name: import-boards
 
 # 掲示場の CSV を Supabase に取り込む（手で実行するだけ。scripts/import-boards.ts を流す）。
 # - plan: 秘密情報を使わずに CSV を検査する（--dry-run。DB に接続しない）
-# - import: 選んだ Environment の SUPABASE_DB_URL で取り込む。production は承認されるまで動かず、main からだけ流せる
+# - import: Environment production の SUPABASE_DB_URL で取り込む。承認されるまで動かず、main からだけ流せる
+#   （確認用〔staging〕の環境は使わない）
 # 同じ CSV を何度流しても結果は変わらない。--prune で消える掲示板があるときは、まず件数なしで実行して
 # 消える番号を確かめ、その件数を confirm_prune に入れて実行し直す（件数が違うと DB を変えずに止まる）。
 # 番号だけが変わった掲示板があるときは、先に照合レポートの SQL を SQL エディタで流す（手順書 §4-2）。
@@ -12,7 +13,7 @@ on:
       environment:
         description: 流す先
         type: choice
-        options: [staging, production]
+        options: [production]
         required: true
       csv:
         description: 取り込む CSV（repo の中のパス）
@@ -77,7 +78,7 @@ jobs:
   # Environment production には承認者（required reviewers）がいるので、承認されるまで動かない
   import:
     needs: plan
-    if: inputs.environment == 'staging' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     concurrency:
