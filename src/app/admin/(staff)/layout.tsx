@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { logoutAction } from "@/features/admin/auth-actions";
 import { AdminNav } from "@/features/admin/components/admin-nav";
+import { HELP_PATH } from "@/features/admin/help-sections";
 import { getStaffSession } from "@/features/admin/staff-session";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
@@ -40,7 +42,12 @@ export default async function StaffLayout({ children }: { children: ReactNode })
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-muted-foreground text-sm">ログイン中: {ROLE_LABELS[role]}</p>
-        <LogoutButton />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href={HELP_PATH}>ヘルプ</Link>
+          </Button>
+          <LogoutButton />
+        </div>
       </div>
       <AdminNav role={role} />
       {children}

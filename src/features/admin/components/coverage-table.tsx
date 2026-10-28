@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState } from "react";
 import { WARDS } from "@/features/poster-map/area";
 import { boardsInRow, chomeLabel, chomeRowsOf, filterSummary, formatShare } from "../coverage-view";
 import type { CoverageBoard, CoverageKind, CoverageSummaryRow } from "../types";
+import { SectionTitle } from "./help-link";
 
 const TH = "py-1 pr-3 font-normal whitespace-nowrap";
 const TD = "py-1 pr-3 align-top";
@@ -143,7 +144,7 @@ export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
 
   return (
     <section className="space-y-2">
-      <h2 className="font-bold text-brand-dark">地域ごとの数</h2>
+      <SectionTitle help="coverage-table">地域ごとの数</SectionTitle>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <fieldset aria-label="単位" className="m-0 flex min-w-0 gap-1 border-0 p-0">
           {UNITS.map((u) => (

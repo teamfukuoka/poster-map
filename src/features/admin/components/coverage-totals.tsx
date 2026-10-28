@@ -1,5 +1,6 @@
 import { formatShare, isRehearsalNotePeriod, REHEARSAL_NOTE, totalsOf } from "../coverage-view";
 import type { CoverageBoard, CoverageSummaryRow } from "../types";
+import { SectionTitle } from "./help-link";
 
 function Tile({ name, value, alert }: { name: string; value: string; alert?: boolean }) {
   return (
@@ -24,7 +25,7 @@ export function CoverageTotals({
   const missing = boards.filter((b) => b.school_source === null).length;
   return (
     <section className="space-y-2">
-      <h2 className="font-bold text-brand-dark">全体の数</h2>
+      <SectionTitle help="coverage-totals">全体の数</SectionTitle>
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-5">
         <Tile name="掲示場" value={String(totals.total)} />
         <Tile name="担当あり" value={String(totals.assigned)} />

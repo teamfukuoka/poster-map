@@ -6,6 +6,7 @@ import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
 import { resetRehearsalAction } from "../actions";
 import { RESET_CONFIRM_WORD } from "../validation";
 import { ConfirmDialog } from "./confirm-dialog";
+import { SectionTitle } from "./help-link";
 
 /**
  * リハーサルの報告をまとめて戻す。管理者にだけ描く。
@@ -31,7 +32,7 @@ export function ResetRehearsal({ canReset }: { canReset: boolean }) {
 
   return (
     <section className="space-y-3">
-      <h2 className="font-bold text-brand-dark">報告をまとめて戻す</h2>
+      <SectionTitle help="site-reset">報告をまとめて戻す</SectionTitle>
       {error && (
         <p role="alert" className="text-destructive text-sm">
           {error}

@@ -1,6 +1,7 @@
 import { auditActionLabel, auditTargetLabel } from "../audit-labels";
 import { formatJst, textOrDash } from "../dashboard-view";
 import type { AuditLogRow } from "../types";
+import { SectionTitle } from "./help-link";
 
 const TH = "py-1 pr-3 font-normal";
 const TD = "py-1 pr-3 align-top";
@@ -9,7 +10,7 @@ const TD = "py-1 pr-3 align-top";
 export function AuditLogTable({ rows }: { rows: AuditLogRow[] }) {
   return (
     <section className="space-y-2">
-      <h2 className="font-bold text-brand-dark">操作の記録</h2>
+      <SectionTitle help="audit">操作の記録</SectionTitle>
       <p className="text-muted-foreground text-sm">新しい順に、直近100件を出しています。</p>
       {rows.length === 0 ? (
         <p className="rounded-lg bg-card p-3 text-muted-foreground text-sm shadow-card">

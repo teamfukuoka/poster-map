@@ -8,6 +8,7 @@ import { formatJst, siteStateLabel } from "../dashboard-view";
 import type { SiteState } from "../types";
 import { PUBLISH_CONFIRM_WORD, REVERT_CONFIRM_WORD } from "../validation";
 import { ConfirmDialog } from "./confirm-dialog";
+import { HelpLink, SectionTitle } from "./help-link";
 import { SiteStateBadge } from "./site-state-badge";
 
 const CACHE_NOTE =
@@ -19,7 +20,10 @@ type DialogName = "stop" | "resume" | "publish" | "revert";
 export function SiteStatus({ site }: { site: SiteState }) {
   return (
     <section className="space-y-2 rounded-lg bg-card p-3 shadow-card">
-      <SiteStateBadge label={siteStateLabel(site)} />
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <SiteStateBadge label={siteStateLabel(site)} />
+        <HelpLink id="site-status" />
+      </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         <dt className="text-muted-foreground">公開期間の始まり</dt>
         <dd>{formatJst(site.public_from)}</dd>
@@ -108,7 +112,7 @@ export function SiteControls({
 
   return (
     <section className="space-y-3">
-      <h2 className="font-bold text-brand-dark">公開の切り替え</h2>
+      <SectionTitle help="site-publish">公開の切り替え</SectionTitle>
       {error && (
         <p role="alert" className="text-destructive text-sm">
           {error}

@@ -8,6 +8,7 @@ import { CoverageAssigneeForm } from "./coverage-assignee-form";
 import { CoverageAssigneeList } from "./coverage-assignee-list";
 import { CoverageTable, isSameRow } from "./coverage-table";
 import { CoverageTotals } from "./coverage-totals";
+import { SectionTitle } from "./help-link";
 
 // leaflet は window を使うので、ブラウザでだけ読み込む
 const CoverageMap = dynamic(() => import("./coverage-map"), {
@@ -42,7 +43,7 @@ export function CoverageScreen({ data, now }: { data: Coverage; now: Date }) {
       />
       <section className="space-y-2">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <h2 className="font-bold text-brand-dark">地図</h2>
+          <SectionTitle help="coverage-map">地図</SectionTitle>
           <ul className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
             {LEGEND.map((l) => (
               <li key={l.label} className="flex items-center gap-1">
@@ -59,7 +60,7 @@ export function CoverageScreen({ data, now }: { data: Coverage; now: Date }) {
         <CoverageMap boards={data.boards} selected={selected} />
       </section>
       <section className="space-y-2">
-        <h2 className="font-bold text-brand-dark">担当者を登録する</h2>
+        <SectionTitle help="coverage-register">担当者を登録する</SectionTitle>
         <CoverageAssigneeForm places={places} assignees={data.assignees} />
       </section>
       <CoverageAssigneeList assignees={data.assignees} places={places} />

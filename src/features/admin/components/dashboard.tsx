@@ -9,7 +9,9 @@ import {
   sumWardProgress,
   textOrDash,
 } from "../dashboard-view";
+import type { HelpId } from "../help-sections";
 import type { Dashboard as DashboardData } from "../types";
+import { HelpLink, SectionTitle } from "./help-link";
 import { SiteStateBadge } from "./site-state-badge";
 
 const EMPTY = "いまはありません";
@@ -20,18 +22,20 @@ function statusLabel(status: string): string {
 
 function Section({
   title,
+  help,
   empty,
   emptyText = EMPTY,
   children,
 }: {
   title: string;
+  help: HelpId;
   empty: boolean;
   emptyText?: string;
   children: ReactNode;
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="font-bold text-brand-dark">{title}</h2>
+      <SectionTitle help={help}>{title}</SectionTitle>
       {empty ? (
         <p className="rounded-lg bg-card p-3 text-muted-foreground text-sm shadow-card">
           {emptyText}
@@ -53,10 +57,14 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
   const wardTotals = sumWardProgress(data.wards);
   return (
     <div className="space-y-6">
-      <SiteStateBadge label={siteStateLabel(data.site)} />
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <SiteStateBadge label={siteStateLabel(data.site)} />
+        <HelpLink id="dashboard" />
+      </div>
 
       <Section
         title="長く残っている予約"
+        help="dashboard-stale"
         empty={data.stale.length === 0}
         emptyText={staleEmptyText}
       >
@@ -84,7 +92,7 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
         </table>
       </Section>
 
-      <Section title="「危険」の報告" empty={data.dangerous.length === 0}>
+      <Section title="「危険」の報告" help="dashboard-danger" empty={data.dangerous.length === 0}>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-muted-foreground text-xs">
@@ -113,7 +121,11 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
         </table>
       </Section>
 
-      <Section title="新しい連絡事項（直近24時間）" empty={data.reports.length === 0}>
+      <Section
+        title="新しい連絡事項（直近24時間）"
+        help="dashboard-reports"
+        empty={data.reports.length === 0}
+      >
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-muted-foreground text-xs">
@@ -142,7 +154,7 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
         </table>
       </Section>
 
-      <Section title="区ごとの進み具合" empty={data.wards.length === 0}>
+      <Section title="区ごとの進み具合" help="dashboard-wards" empty={data.wards.length === 0}>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-muted-foreground text-xs">

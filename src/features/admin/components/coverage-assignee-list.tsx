@@ -10,6 +10,7 @@ import { filterAssignees, type Place, rangeKey, rangeLabel } from "../coverage-v
 import type { CoverageAssignee } from "../types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { CoverageAssigneeForm } from "./coverage-assignee-form";
+import { SectionTitle } from "./help-link";
 
 /** 登録済みの担当者。「直す」はその場でフォームに、「外す」は確かめてから */
 export function CoverageAssigneeList({
@@ -43,7 +44,7 @@ export function CoverageAssigneeList({
 
   return (
     <section className="space-y-2">
-      <h2 className="font-bold text-brand-dark">登録済みの担当者</h2>
+      <SectionTitle help="coverage-assignees">登録済みの担当者</SectionTitle>
       {error && (
         <p role="alert" className="text-destructive text-sm">
           {error}

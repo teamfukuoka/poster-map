@@ -9,6 +9,7 @@ import { revokeInviteCodeAction } from "../actions";
 import { formatJst } from "../dashboard-view";
 import type { InviteCodeRow } from "../types";
 import { ConfirmDialog } from "./confirm-dialog";
+import { SectionTitle } from "./help-link";
 import { InviteCodeReveal } from "./invite-code-reveal";
 
 const TH = "py-1 pr-3 font-normal";
@@ -45,7 +46,7 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
 
   return (
     <section className="space-y-2">
-      <h2 className="font-bold text-brand-dark">登録されている参加コード</h2>
+      <SectionTitle help="codes-list">登録されている参加コード</SectionTitle>
       <p className="text-muted-foreground text-sm">コードを表示すると、操作の記録に残ります。</p>
       {error && (
         <p role="alert" className="text-destructive text-sm">

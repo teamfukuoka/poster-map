@@ -13,6 +13,7 @@ import {
   validateLabel,
 } from "../validation";
 import { ConfirmDialog } from "./confirm-dialog";
+import { SectionTitle } from "./help-link";
 
 /** 参加コードの登録（管理者だけに出す）。送る値は入力のまま。前後の空白や全角はサーバー側でもそろえる */
 export function InviteCodeForm() {
@@ -52,7 +53,7 @@ export function InviteCodeForm() {
 
   return (
     <section className="space-y-3">
-      <h2 className="font-bold text-brand-dark">参加コードを登録する</h2>
+      <SectionTitle help="codes-register">参加コードを登録する</SectionTitle>
       <p className="text-sm">
         参加コードはいくつでも登録できます。配る相手ごとに分けておくと、もれたときにそのコードだけ止められます。
       </p>
