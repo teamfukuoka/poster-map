@@ -75,7 +75,6 @@ export default function CoverageMap({ boards, selected }: Props) {
   }, [boards, selected]);
 
   // 視点は、選んだ行が変わったときだけ動かす（上の effect が先に走り、shownRef が新しくなっている）
-  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedKey の変化が合図
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
