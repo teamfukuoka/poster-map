@@ -81,6 +81,23 @@ test("停止された端末には参加の案内を出さない", async () => {
   expect(screen.queryByRole("button", { name: "参加コードをお持ちの方" })).not.toBeInTheDocument();
 });
 
+test("サーバーで期間外と分かっていれば、最初から案内を出し、公開 API を呼ばない", () => {
+  render(<PosterMapApp initialViewer={{ kind: "public" }} initialClosed />);
+  expect(screen.getByText("地図は公開期間中にご覧いただけます。")).toBeInTheDocument();
+  expect(screen.queryByText("読み込み中…")).not.toBeInTheDocument();
+  expect(fetchPublicBoards).not.toHaveBeenCalled();
+});
+
+test("期間外でも、ボランティアには地図を出す", async () => {
+  jest.mocked(loadVolunteerBoardsAction).mockResolvedValue({ ok: true, data: [board("1")] });
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  render(
+    <PosterMapApp initialViewer={{ kind: "volunteer", displayName: "はなこ" }} initialClosed />,
+  );
+  expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
+  expect(fetchPublicBoards).not.toHaveBeenCalled();
+});
+
 test("ボランティアは報告でき、結果が地図と集計に反映される", async () => {
   jest.mocked(loadVolunteerBoardsAction).mockResolvedValue({ ok: true, data: [board("1")] });
   jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
@@ -185,6 +202,17 @@ test("参加をやめた後に上のボタンから参加したら、報告は�
   expect(await screen.findByText("はなこ さんとして参加中")).toBeInTheDocument();
   await waitFor(() => expect(loadVolunteerBoardsAction).toHaveBeenCalled());
   expect(screen.queryByText("ポスターの状況を報告")).not.toBeInTheDocument();
+});
+
+test("期間外の案内から参加したら、ボランティアの地図を読み込む", async () => {
+  jest.mocked(joinAction).mockResolvedValue({ ok: true, data: { displayName: "はなこ" } });
+  jest.mocked(loadVolunteerBoardsAction).mockResolvedValue({ ok: true, data: [board("1")] });
+  jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  render(<PosterMapApp initialViewer={{ kind: "public" }} initialClosed />);
+  fireEvent.click(screen.getByRole("button", { name: "参加コードをお持ちの方" }));
+  fillJoin();
+  expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
+  expect(fetchPublicBoards).not.toHaveBeenCalled();
 });
 
 function returnToTab() {

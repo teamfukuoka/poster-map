@@ -4,6 +4,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
 import type { ActionResult } from "@/features/poster-map/types";
+import { PUBLIC_WINDOW_TAG } from "@/lib/public-window";
 import { SITE_NAME_TAG } from "@/lib/site-name";
 import { createClient } from "@/lib/supabase/server";
 import * as service from "./admin-service";
@@ -33,12 +34,13 @@ function refreshOnSuccess<T>(result: ActionResult<T>): ActionResult<T> {
 }
 
 /**
- * 公開の状態・サイト名が変わったとき。管理画面に加えて、公開の画面（ヘッダーのサイト名を含む）も取り直させる。
- * updateTag は Server Action 用で、次のリクエストを待たせて新しい名前を読ませる（古い名前を30秒返さない）
+ * 公開の状態・サイト名が変わったとき。管理画面に加えて、公開の画面（ヘッダーのサイト名・期間外の案内を含む）も取り直させる。
+ * updateTag は Server Action 用で、次のリクエストを待たせて新しい値を読ませる（古い値を30秒返さない）
  */
 function refreshSiteOnSuccess<T>(result: ActionResult<T>): ActionResult<T> {
   if (result.ok) {
     updateTag(SITE_NAME_TAG);
+    updateTag(PUBLIC_WINDOW_TAG);
     revalidatePath("/", "layout");
   }
   return result;

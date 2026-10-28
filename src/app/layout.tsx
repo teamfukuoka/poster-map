@@ -10,7 +10,11 @@ import "./globals.css";
 export async function generateMetadata(): Promise<Metadata> {
   const siteName = await getSiteName();
   // 検索エンジンには載せない（URL を知っている人に向けた道具）
-  return { title: siteName, robots: { index: false, follow: false } };
+  return {
+    title: siteName,
+    description: "福岡市内のポスター掲示板の場所と、貼り終えたかどうかを地図で確かめられます。",
+    robots: { index: false, follow: false },
+  };
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

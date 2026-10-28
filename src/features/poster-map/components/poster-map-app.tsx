@@ -61,9 +61,17 @@ async function loadBoards(isVolunteer: boolean): Promise<Loaded> {
   }
 }
 
-export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
+type Props = {
+  initialViewer: Viewer;
+  /** サーバーで公開期間外と分かったか。分からないときは false（/api/boards で確かめる） */
+  initialClosed?: boolean;
+};
+
+export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
   const [viewer, setViewer] = useState(initialViewer);
-  const [state, setState] = useState<LoadState>({ kind: "loading" });
+  const [state, setState] = useState<LoadState>(
+    initialClosed ? { kind: "closed" } : { kind: "loading" },
+  );
   const [myBoardIds, setMyBoardIds] = useState<ReadonlySet<string>>(EMPTY_IDS);
   const [reloadKey, setReloadKey] = useState(0);
   const [selected, setSelected] = useState<MapBoard | null>(null);
@@ -79,9 +87,12 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
 
   const isVolunteer = viewer.kind === "volunteer";
   const canJoin = viewer.kind === "public";
+  // 期間外と分かっている一般の人は、/api/boards を取りに行かない（404 で終わるだけ）
+  const skipPublicFetch = initialClosed && !isVolunteer;
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reloadKey は再読み込みの合図
   useEffect(() => {
+    if (skipPublicFetch) return;
     let active = true;
     // 地図を表示しているときは作り直さない。裏で取り直して差し替える
     if (stateRef.current.kind !== "ok") setState({ kind: "loading" });
@@ -95,7 +106,7 @@ export function PosterMapApp({ initialViewer }: { initialViewer: Viewer }) {
     return () => {
       active = false;
     };
-  }, [isVolunteer, reloadKey]);
+  }, [isVolunteer, reloadKey, skipPublicFetch]);
 
   // ボランティアはタブに戻ったとき、ほかの人の報告を反映するため裏で取り直す
   // （一般の閲覧者は /api/boards の CDN キャッシュがあるので取り直さない）

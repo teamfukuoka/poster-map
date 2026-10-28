@@ -16,6 +16,7 @@ import * as service from "./admin-service";
 
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn(), updateTag: jest.fn() }));
 jest.mock("@/lib/site-name", () => ({ SITE_NAME_TAG: "site-name" }));
+jest.mock("@/lib/public-window", () => ({ PUBLIC_WINDOW_TAG: "public-window" }));
 jest.mock("@/lib/supabase/server", () => ({ createClient: jest.fn() }));
 jest.mock("./admin-service", () => ({
   revealInviteCode: jest.fn(),
@@ -126,6 +127,7 @@ describe("setForceHiddenAction", () => {
     await expect(setForceHiddenAction(false)).resolves.toEqual({ ok: true, data: null });
     expect(service.setForceHidden).toHaveBeenCalledWith(client, false);
     expect(updateTag).toHaveBeenCalledWith("site-name");
+    expect(updateTag).toHaveBeenCalledWith("public-window");
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 
@@ -152,11 +154,12 @@ describe.each([
   ["publishSiteAction", publishSiteAction, service.publishSite, "公開する"],
   ["revertAcceptanceAction", revertAcceptanceAction, service.revertAcceptance, "受理前に戻す"],
 ] as const)("%s", (_name, action, serviceFn, word) => {
-  test("文字列なら service に渡し、成功したらサイト名の tag と公開の画面を revalidate する", async () => {
+  test("文字列なら service に渡し、成功したらサイト名・公開期間の tag と公開の画面を revalidate する", async () => {
     jest.mocked(serviceFn).mockResolvedValue({ ok: true, data: null });
     await expect(action(word)).resolves.toEqual({ ok: true, data: null });
     expect(serviceFn).toHaveBeenCalledWith(client, word);
     expect(updateTag).toHaveBeenCalledWith("site-name");
+    expect(updateTag).toHaveBeenCalledWith("public-window");
     expect(revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 
