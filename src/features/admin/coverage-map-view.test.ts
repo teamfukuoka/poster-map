@@ -2,14 +2,18 @@ import { board } from "./components/coverage-fixtures";
 import { coverageTooltipHtml, markerStyle } from "./coverage-map-view";
 
 describe("markerStyle", () => {
-  it("担当なしは担当ありより大きく、色も違う", () => {
-    expect(markerStyle("none").radius).toBeGreaterThan(markerStyle("assigned").radius);
+  it("担当なし > 予約あり > 担当ありの順に大きく、塗りの色も違う", () => {
     expect(markerStyle("none").radius).toBeGreaterThan(markerStyle("reserved").radius);
     expect(markerStyle("reserved").radius).toBeGreaterThan(markerStyle("assigned").radius);
-    const colors = new Set(
-      (["none", "reserved", "assigned"] as const).map((c) => markerStyle(c).color),
+    const fills = new Set(
+      (["none", "reserved", "assigned"] as const).map((c) => markerStyle(c).fillColor),
     );
-    expect(colors.size).toBe(3);
+    expect(fills.size).toBe(3);
+  });
+
+  it("担当ありは、地図に溶けないよう縁を塗りと違う色にする", () => {
+    const s = markerStyle("assigned");
+    expect(s.color).not.toBe(s.fillColor);
   });
 });
 

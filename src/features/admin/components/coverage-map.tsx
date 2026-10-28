@@ -20,14 +20,21 @@ export default function CoverageMap({ boards, selected }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
+  /** いま描いている掲示場。視点を寄せる範囲に使う */
+  const shownRef = useRef<CoverageBoard[]>([]);
+  // 集計は読み直しで作り直されるので、行の中身で「同じ行か」を見る
+  const selectedKey = selected
+    ? JSON.stringify([selected.unit, selected.ward, selected.school, selected.town, selected.chome])
+    : null;
 
   // 地図は一度だけ作る。点が多い（2,000 件超）ので canvas で描き、クラスタにはしない
   useEffect(() => {
     if (!containerRef.current) return;
-    const map = L.map(containerRef.current, { preferCanvas: true }).setView(
-      MAP_CENTER,
-      DEFAULT_ZOOM,
-    );
+    // tolerance: 小さい点でも指で押しやすいよう、当たり判定を広げる
+    const map = L.map(containerRef.current, {
+      preferCanvas: true,
+      renderer: L.canvas({ tolerance: 5 }),
+    }).setView(MAP_CENTER, DEFAULT_ZOOM);
     L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
       attribution:
         '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">地理院タイル</a>',
@@ -42,22 +49,22 @@ export default function CoverageMap({ boards, selected }: Props) {
     };
   }, []);
 
-  // 選んだ範囲の掲示場だけを描き、その範囲に寄せる
+  // 選んだ範囲の掲示場だけを描く。登録・外すで boards が読み直されても、視点は動かさない
   useEffect(() => {
-    const map = mapRef.current;
     const layer = layerRef.current;
-    if (!map || !layer) return;
+    if (!layer) return;
     layer.clearLayers();
 
     const shown = selected ? boardsInRow(boards, selected) : boards;
+    shownRef.current = shown;
     for (const status of DRAW_ORDER) {
-      const { color, radius } = markerStyle(status);
+      const { color, fillColor, radius } = markerStyle(status);
       for (const b of shown) {
         if (b.coverage !== status) continue;
         L.circleMarker([b.lat, b.long], {
           radius,
           color,
-          fillColor: color,
+          fillColor,
           fillOpacity: 0.85,
           weight: 1,
         })
@@ -65,9 +72,16 @@ export default function CoverageMap({ boards, selected }: Props) {
           .addTo(layer);
       }
     }
+  }, [boards, selected]);
 
+  // 視点は、選んだ行が変わったときだけ動かす（上の effect が先に走り、shownRef が新しくなっている）
+  // biome-ignore lint/correctness/useExhaustiveDependencies: selectedKey の変化が合図
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const shown = shownRef.current;
     // 選んでいない（または範囲に掲示場がない）ときは、全体の見え方に戻す
-    if (!selected || shown.length === 0) {
+    if (!selectedKey || shown.length === 0) {
       map.setView(MAP_CENTER, DEFAULT_ZOOM);
       return;
     }
@@ -75,7 +89,7 @@ export default function CoverageMap({ boards, selected }: Props) {
       padding: [24, 24],
       maxZoom: 17,
     });
-  }, [boards, selected]);
+  }, [selectedKey]);
 
   return (
     <div

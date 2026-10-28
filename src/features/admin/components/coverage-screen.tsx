@@ -16,9 +16,9 @@ const CoverageMap = dynamic(() => import("./coverage-map"), {
 });
 
 const LEGEND = [
-  { label: "担当なし", color: markerStyle("none").color },
-  { label: "予約あり", color: markerStyle("reserved").color },
-  { label: "担当あり", color: markerStyle("assigned").color },
+  { label: "担当なし", ...markerStyle("none") },
+  { label: "予約あり", ...markerStyle("reserved") },
+  { label: "担当あり", ...markerStyle("assigned") },
 ];
 
 /** カバー地域の画面。並びは 全体の数 → 一覧 →（地図）→ 登録 → 登録済み */
@@ -49,7 +49,7 @@ export function CoverageScreen({ data, now }: { data: Coverage; now: Date }) {
                 <span
                   aria-hidden="true"
                   className="inline-block size-2.5 rounded-full"
-                  style={{ backgroundColor: l.color }}
+                  style={{ backgroundColor: l.fillColor, border: `1px solid ${l.color}` }}
                 />
                 {l.label}
               </li>

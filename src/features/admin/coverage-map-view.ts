@@ -3,19 +3,24 @@ import { escapeHtml } from "@/features/poster-map/html";
 import type { CoverageBoard, CoverageStatus } from "./types";
 
 /**
- * 点の色と大きさ。担当なしの赤を一番大きく、担当ありの灰色を一番小さくして、
- * 灰色の点に赤が埋もれないようにする。
- * 公開の地図の予約（橙 #F59E0B）・エラー（赤 #EF4444）とは別の画面なので、
- * ここでは黄（#EAB308）と濃い赤（#DC2626）にして、地図の上でも見分けがつくようにする。
+ * 点の色と大きさ。color は縁、fillColor は塗り。
+ * 担当なしの赤を一番大きく、担当ありの灰色を一番小さくして、灰色の点に赤が埋もれないようにする。
+ * 灰色は地図のタイルに溶けやすいので、担当ありだけ濃い縁をつける。
+ * 予約あり（黄 #EAB308）は公開の地図の「予約」と同じ意味なので、近い黄にしてある。
+ * この地図にはエラーの状態は出ないので、赤（#DC2626）は担当なしだけを表す。
  */
-export function markerStyle(c: CoverageStatus): { color: string; radius: number } {
+export function markerStyle(c: CoverageStatus): {
+  color: string;
+  fillColor: string;
+  radius: number;
+} {
   switch (c) {
     case "none":
-      return { color: "#DC2626", radius: 7 };
+      return { color: "#DC2626", fillColor: "#DC2626", radius: 7 };
     case "reserved":
-      return { color: "#EAB308", radius: 5 };
+      return { color: "#EAB308", fillColor: "#EAB308", radius: 5 };
     case "assigned":
-      return { color: "#9CA3AF", radius: 3 };
+      return { color: "#374151", fillColor: "#9CA3AF", radius: 4 };
   }
 }
 
