@@ -3,6 +3,7 @@ import {
   joinAction,
   loadHistoryAction,
   loadMyBoardIdsAction,
+  loadMyReservedBoardIdsAction,
   loadVolunteerBoardsAction,
   updateStatusAction,
 } from "../actions";
@@ -35,6 +36,7 @@ jest.mock("../actions", () => ({
   joinAction: jest.fn(),
   loadHistoryAction: jest.fn(),
   loadMyBoardIdsAction: jest.fn(),
+  loadMyReservedBoardIdsAction: jest.fn(),
   loadVolunteerBoardsAction: jest.fn(),
   updateStatusAction: jest.fn(),
 }));
@@ -53,7 +55,10 @@ const board = (id: string, status: MapBoard["status"] = "not_yet"): MapBoard => 
 });
 
 // mockResolvedValueOnce の残りが次のテストに漏れないよう、実装ごと戻す
-beforeEach(() => jest.resetAllMocks());
+beforeEach(() => {
+  jest.resetAllMocks();
+  jest.mocked(loadMyReservedBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+});
 
 test("一般の人には公開 API の掲示板を出し、押すと情報ダイアログを開く", async () => {
   jest

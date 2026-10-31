@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { BULK_RESERVE_MAX } from "../limits";
 import { PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
 
 type Props = {
@@ -70,12 +71,16 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
               </li>
               <li>
                 向かう掲示板のピンを押して「予約」で報告します。ほかの人に「ここには私が行きます」と知らせるためのものです。ピンの「Google
-                マップ」「Apple マップ」で道案内できます。
+                マップ」「Apple
+                マップ」で道案内できます。投票区を選んでいるときは、検索欄の下のボタンで、その投票区の未貼付をまとめて予約できます（一度に
+                {BULK_RESERVE_MAX}か所まで）。
               </li>
               <li>
                 貼り終えたら、同じピンを押して「完了」で報告します。その場ですぐ貼れるときは、予約しないで「完了」だけでかまいません。
               </li>
-              <li>行けなくなったら「未貼付」に戻してください。予約は時間がたっても消えません。</li>
+              <li>
+                行けなくなったら「未貼付」に戻してください。予約は時間がたっても消えません。「自分の予約をまとめて未貼付に戻す」で一度に戻せます。
+              </li>
               <li>
                 危なくて貼れない、ほかの候補者のポスターが貼られている、などのときは当てはまる状況を選び、連絡事項に様子を書いてください。
               </li>

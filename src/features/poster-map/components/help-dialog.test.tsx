@@ -36,3 +36,13 @@ test("参加中の人には、投票区で探す→予約→完了の流れを�
   expect(steps[1]).toMatch(/「予約」/);
   expect(steps[2]).toMatch(/「完了」/);
 });
+
+test("参加中の人には、まとめて予約（30か所まで）とまとめて戻すことを出す", () => {
+  render(<HelpDialog open onOpenChange={jest.fn()} isVolunteer />);
+  expect(
+    screen.getByText(/未貼付をまとめて予約できます（一度に\s*30か所まで）/),
+  ).toBeInTheDocument();
+  expect(
+    screen.getByText(/「自分の予約をまとめて未貼付に戻す」で一度に戻せます/),
+  ).toBeInTheDocument();
+});

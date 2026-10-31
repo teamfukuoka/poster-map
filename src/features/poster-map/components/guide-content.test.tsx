@@ -109,3 +109,15 @@ test("ポスター貼りの流れを、投票区で探す→予約→完了→�
   expect(order).toEqual([...order].sort((a, b) => a - b));
   expect(steps[0]).toMatch(/担当が複数あるときは、続けて選ぶと足していけます/);
 });
+
+test("まとめて予約（一度に30か所まで）と、自分の予約をまとめて戻すことを書く", () => {
+  render(<GuideContent isVolunteer={false} />);
+  const flow = sectionOf("ポスター貼りの流れ");
+  expect(within(flow).getByText(/まとめて予約できます（一度に30か所まで）/)).toBeInTheDocument();
+  expect(within(flow).getByText(/自分の予約を一度に戻せます/)).toBeInTheDocument();
+  const report = sectionOf("報告する");
+  expect(within(report).getByText(/一度に予約できるのは30\s*か所までです/)).toBeInTheDocument();
+  expect(
+    within(report).getByText(/先にピンから「完了」で報告してから使ってください/),
+  ).toBeInTheDocument();
+});

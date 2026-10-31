@@ -4,13 +4,18 @@ import { CircleHelp } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { loadMyBoardIdsAction, loadVolunteerBoardsAction } from "../actions";
+import {
+  loadMyBoardIdsAction,
+  loadMyReservedBoardIdsAction,
+  loadVolunteerBoardsAction,
+} from "../actions";
 import { toUserMessage } from "../errors";
 import { fetchPublicBoards } from "../public-boards";
 import type { MapBoard } from "../types";
 import { useBoardFilter } from "../use-board-filter";
 import type { Viewer } from "../volunteer-service";
 import { BoardFilter } from "./board-filter";
+import { BulkReserve } from "./bulk-reserve";
 import { ClosedNotice } from "./closed-notice";
 import { HelpDialog } from "./help-dialog";
 import { InfoDialog } from "./info-dialog";
@@ -31,17 +36,33 @@ type LoadState =
   | { kind: "closed" }
   | { kind: "error"; message: string };
 
-type Loaded = { state: LoadState; myBoardIds: ReadonlySet<string> };
+type Loaded = {
+  state: LoadState;
+  myBoardIds: ReadonlySet<string>;
+  /** 自分の予約（最後に予約したのが自分）。まとめて戻すボタンの件数に使う */
+  myReservedIds: ReadonlySet<string>;
+};
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 const EMPTY_BOARDS: MapBoard[] = [];
 
 async function loadVolunteerBoards(): Promise<Loaded> {
-  const [boards, mine] = await Promise.all([loadVolunteerBoardsAction(), loadMyBoardIdsAction()]);
-  if (!boards.ok) return { state: { kind: "error", message: boards.error }, myBoardIds: EMPTY_IDS };
+  const [boards, mine, reserved] = await Promise.all([
+    loadVolunteerBoardsAction(),
+    loadMyBoardIdsAction(),
+    loadMyReservedBoardIdsAction(),
+  ]);
+  if (!boards.ok) {
+    return {
+      state: { kind: "error", message: boards.error },
+      myBoardIds: EMPTY_IDS,
+      myReservedIds: EMPTY_IDS,
+    };
+  }
   return {
     state: { kind: "ok", boards: boards.data },
     myBoardIds: mine.ok ? new Set(mine.data) : EMPTY_IDS,
+    myReservedIds: reserved.ok ? new Set(reserved.data) : EMPTY_IDS,
   };
 }
 
@@ -49,15 +70,23 @@ async function loadBoards(isVolunteer: boolean): Promise<Loaded> {
   if (!isVolunteer) {
     const result = await fetchPublicBoards();
     if (result.kind === "ok") {
-      return { state: { kind: "ok", boards: result.boards }, myBoardIds: EMPTY_IDS };
+      return {
+        state: { kind: "ok", boards: result.boards },
+        myBoardIds: EMPTY_IDS,
+        myReservedIds: EMPTY_IDS,
+      };
     }
-    return { state: result, myBoardIds: EMPTY_IDS };
+    return { state: result, myBoardIds: EMPTY_IDS, myReservedIds: EMPTY_IDS };
   }
   try {
     return await loadVolunteerBoards();
   } catch {
     // Server Action は通信の切断や再デプロイで reject することがある
-    return { state: { kind: "error", message: toUserMessage(null) }, myBoardIds: EMPTY_IDS };
+    return {
+      state: { kind: "error", message: toUserMessage(null) },
+      myBoardIds: EMPTY_IDS,
+      myReservedIds: EMPTY_IDS,
+    };
   }
 }
 
@@ -73,6 +102,7 @@ export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
     initialClosed ? { kind: "closed" } : { kind: "loading" },
   );
   const [myBoardIds, setMyBoardIds] = useState<ReadonlySet<string>>(EMPTY_IDS);
+  const [myReservedIds, setMyReservedIds] = useState<ReadonlySet<string>>(EMPTY_IDS);
   const [reloadKey, setReloadKey] = useState(0);
   const [selected, setSelected] = useState<MapBoard | null>(null);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
@@ -102,6 +132,7 @@ export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
       if (loaded.state.kind !== "ok" && stateRef.current.kind === "ok") return;
       setState(loaded.state);
       setMyBoardIds(loaded.myBoardIds);
+      setMyReservedIds(loaded.myReservedIds);
     });
     return () => {
       active = false;
@@ -144,13 +175,36 @@ export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
     if (board) setSelected(board);
   };
 
-  const handleUpdated = (updated: MapBoard) => {
+  /** 自分が報告した掲示板を反映する。予約にしたものは自分の予約に足し、それ以外は外す */
+  const applyUpdates = useCallback((updated: readonly MapBoard[]) => {
+    const byId = new Map(updated.map((b) => [b.id, b]));
     setState((prev) =>
       prev.kind === "ok"
-        ? { kind: "ok", boards: prev.boards.map((b) => (b.id === updated.id ? updated : b)) }
+        ? { kind: "ok", boards: prev.boards.map((b) => byId.get(b.id) ?? b) }
         : prev,
     );
-    setMyBoardIds((prev) => new Set(prev).add(updated.id));
+    setMyBoardIds((prev) => new Set([...prev, ...byId.keys()]));
+    setMyReservedIds((prev) => {
+      const next = new Set(prev);
+      for (const b of updated) {
+        if (b.status === "reserved") next.add(b.id);
+        else next.delete(b.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBulkUpdated = useCallback(
+    (updated: MapBoard[]) => {
+      applyUpdates(updated);
+      // 同じころにほかの人が報告した分も映すため、裏で取り直す
+      setReloadKey((k) => k + 1);
+    },
+    [applyUpdates],
+  );
+
+  const handleUpdated = (updated: MapBoard) => {
+    applyUpdates([updated]);
     // 報告の間に別の掲示板を開いていたら、そちらは閉じない
     setSelected((prev) => (prev?.id === updated.id ? null : prev));
   };
@@ -213,6 +267,18 @@ export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
                 onSelectAll={filter.selectAll}
                 onDeselectAll={filter.deselectAll}
               />
+            }
+            districtActions={
+              isVolunteer
+                ? (districts) => (
+                    <BulkReserve
+                      boards={boards}
+                      districts={districts}
+                      myReservedIds={myReservedIds}
+                      onUpdated={handleBulkUpdated}
+                    />
+                  )
+                : undefined
             }
           />
           <WardSummary boards={boards} />

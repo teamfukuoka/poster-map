@@ -5,7 +5,12 @@ import type { Database } from "@/lib/supabase/database.types";
 import { fetchAllBoards, fetchAllPages } from "./boards-query";
 import { toUserMessage } from "./errors";
 import { normalizeJoinCode } from "./invite-code";
-import { DISPLAY_NAME_MAX_LENGTH, HISTORY_LIMIT, NOTE_MAX_LENGTH } from "./limits";
+import {
+  BULK_RESERVE_MAX,
+  DISPLAY_NAME_MAX_LENGTH,
+  HISTORY_LIMIT,
+  NOTE_MAX_LENGTH,
+} from "./limits";
 import { isBoardStatus } from "./status";
 import type { ActionResult, HistoryItem, MapBoard } from "./types";
 
@@ -130,8 +135,44 @@ export async function updateStatus(
     p_note: note,
   });
   if (error || !data) return { ok: false, error: toUserMessage(error) };
-  const { id, number, name, address, ward, lat, long, status } = data;
-  return { ok: true, data: { id, number, name, address, ward, lat, long, status } };
+  return { ok: true, data: toMapBoard(data) };
+}
+
+type BoardRow = Database["public"]["Tables"]["poster_boards"]["Row"];
+
+function toMapBoard({ id, number, name, address, ward, lat, long, status }: BoardRow): MapBoard {
+  return { id, number, name, address, ward, lat, long, status };
+}
+
+/**
+ * 渡した掲示板のうち、未貼付のものだけをまとめて予約にする。予約にできた掲示板を返す
+ * （ほかの人が先に報告していれば、渡した数より少なくなる）。上限は DB でも確かめる。
+ */
+export async function reserveBoards(
+  client: Client,
+  boardIds: readonly string[],
+): Promise<ActionResult<MapBoard[]>> {
+  if (new Set(boardIds).size > BULK_RESERVE_MAX) {
+    return { ok: false, error: toUserMessage({ message: "too_many_boards" }) };
+  }
+  const { data, error } = await client.rpc("reserve_boards", { p_board_ids: [...boardIds] });
+  if (error || !data) return { ok: false, error: toUserMessage(error) };
+  return { ok: true, data: data.map(toMapBoard) };
+}
+
+/** 自分の予約を全部、未貼付に戻す。戻した掲示板を返す */
+export async function releaseMyReservations(client: Client): Promise<ActionResult<MapBoard[]>> {
+  const { data, error } = await client.rpc("release_my_reservations");
+  if (error || !data) return { ok: false, error: toUserMessage(error) };
+  return { ok: true, data: data.map(toMapBoard) };
+}
+
+/** 自分の予約（いま予約のままで、最後に予約にしたのが自分）。まとめて戻すボタンの件数に使う */
+export async function loadMyReservedBoardIds(client: Client): Promise<ActionResult<string[]>> {
+  if (!(await currentUserId(client))) return { ok: true, data: [] };
+  const { data, error } = await client.rpc("my_reserved_board_ids");
+  if (error || !data) return { ok: false, error: toUserMessage(error) };
+  return { ok: true, data };
 }
 
 /** 「自分が更新したもののみ」フィルター用 */

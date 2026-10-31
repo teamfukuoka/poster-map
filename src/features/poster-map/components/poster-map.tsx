@@ -34,6 +34,8 @@ type Props = {
   isVolunteer: boolean;
   /** 地図の右上に重ねるもの（フィルター） */
   controls?: ReactNode;
+  /** 検索欄の下に出すもの（選んでいる投票区を受け取る）。全画面のときは出さない */
+  districtActions?: (districts: readonly string[]) => ReactNode;
 };
 
 function childBoards(cluster: L.MarkerCluster): MapBoard[] {
@@ -72,6 +74,7 @@ export default function PosterMap({
   onBoardClick,
   isVolunteer,
   controls,
+  districtActions,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -304,6 +307,9 @@ export default function PosterMap({
         style={isFullscreen ? { paddingTop: "calc(0.5rem + env(safe-area-inset-top))" } : undefined}
       >
         {search}
+        {!isFullscreen && districtActions && (
+          <div className="mt-2">{districtActions(districts)}</div>
+        )}
       </div>
       <div
         className={

@@ -302,6 +302,7 @@ export type Database = {
       current_site_name: { Args: never; Returns: string }
       is_active_volunteer: { Args: never; Returns: boolean }
       is_public_window: { Args: never; Returns: boolean }
+      my_reserved_board_ids: { Args: never; Returns: string[] }
       register_volunteer: {
         Args: { p_code: string; p_display_name: string }
         Returns: Database["public"]["CompositeTypes"]["register_volunteer_result"]
@@ -310,6 +311,48 @@ export type Database = {
           to: "register_volunteer_result"
           isOneToOne: true
           isSetofReturn: false
+        }
+      }
+      release_my_reservations: {
+        Args: never
+        Returns: {
+          address: string
+          created_at: string
+          id: string
+          lat: number
+          long: number
+          name: string
+          number: string
+          status: Database["public"]["Enums"]["poster_board_status"]
+          updated_at: string
+          ward: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "poster_boards"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      reserve_boards: {
+        Args: { p_board_ids: string[] }
+        Returns: {
+          address: string
+          created_at: string
+          id: string
+          lat: number
+          long: number
+          name: string
+          number: string
+          status: Database["public"]["Enums"]["poster_board_status"]
+          updated_at: string
+          ward: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "poster_boards"
+          isOneToOne: false
+          isSetofReturn: true
         }
       }
       update_board_status: {

@@ -46,3 +46,20 @@ export async function updateStatusAction(input: {
 export async function loadMyBoardIdsAction(): Promise<ActionResult<string[]>> {
   return service.loadMyBoardIds(await createClient());
 }
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(isString);
+}
+
+export async function reserveBoardsAction(boardIds: string[]): Promise<ActionResult<MapBoard[]>> {
+  if (!isStringArray(boardIds)) return invalidInput();
+  return service.reserveBoards(await createClient(), boardIds);
+}
+
+export async function releaseMyReservationsAction(): Promise<ActionResult<MapBoard[]>> {
+  return service.releaseMyReservations(await createClient());
+}
+
+export async function loadMyReservedBoardIdsAction(): Promise<ActionResult<string[]>> {
+  return service.loadMyReservedBoardIds(await createClient());
+}

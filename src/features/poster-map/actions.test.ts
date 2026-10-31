@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { joinAction, loadHistoryAction, updateStatusAction } from "./actions";
+import { joinAction, loadHistoryAction, reserveBoardsAction, updateStatusAction } from "./actions";
 import { FALLBACK_MESSAGE } from "./errors";
 import * as service from "./volunteer-service";
 
@@ -8,6 +8,7 @@ jest.mock("./volunteer-service", () => ({
   joinAsVolunteer: jest.fn(),
   loadHistory: jest.fn(),
   updateStatus: jest.fn(),
+  reserveBoards: jest.fn(),
 }));
 
 const client = { fake: true };
@@ -78,5 +79,24 @@ describe("updateStatusAction", () => {
   ])("形が違えば失敗を返す（%p）", async (value) => {
     await expect(call(updateStatusAction, value)).resolves.toEqual(invalid);
     expect(service.updateStatus).not.toHaveBeenCalled();
+  });
+});
+
+describe("reserveBoardsAction", () => {
+  test("文字列の配列なら service に渡す", async () => {
+    jest.mocked(service.reserveBoards).mockResolvedValue({ ok: true, data: [] });
+    await expect(reserveBoardsAction(["b1", "b2"])).resolves.toEqual({ ok: true, data: [] });
+    expect(service.reserveBoards).toHaveBeenCalledWith(client, ["b1", "b2"]);
+  });
+
+  test.each([
+    ["b1"],
+    [[1]],
+    [null],
+    [[null]],
+    [{}],
+  ])("文字列の配列でなければ失敗を返す（%p）", async (ids) => {
+    await expect(call(reserveBoardsAction, ids)).resolves.toEqual(invalid);
+    expect(service.reserveBoards).not.toHaveBeenCalled();
   });
 });

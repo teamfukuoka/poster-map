@@ -5,6 +5,9 @@ import {
   loadBoardsForVolunteer,
   loadHistory,
   loadMyBoardIds,
+  loadMyReservedBoardIds,
+  releaseMyReservations,
+  reserveBoards,
   updateStatus,
 } from "@/features/poster-map/volunteer-service";
 import {
@@ -202,5 +205,113 @@ describe("報告と履歴", () => {
       ok: false,
       error: "報告するには参加の手続きが必要です。",
     });
+  });
+});
+
+describe("まとめて予約・まとめて戻す", () => {
+  const statusOf = (number: string) =>
+    withPg(
+      async (db) =>
+        (await db.query("select status from public.poster_boards where number = $1", [number]))
+          .rows[0].status,
+    );
+
+  test("未貼付だけを予約にし、1 か所ずつ履歴を残す。完了・ほかの人の予約はそのまま", async () => {
+    const a1 = await insertBoard("A-1");
+    const a2 = await insertBoard("A-2");
+    const done = await insertBoard("A-3", "done");
+    const theirs = await insertBoard("A-4");
+    const { client: other } = await signInVolunteer("たろう");
+    await updateStatus(other, { boardId: theirs, status: "reserved", note: "" });
+    const { client } = await signInVolunteer("はなこ");
+
+    const result = await reserveBoards(client, [a1, a2, done, theirs]);
+    expect(result.ok && result.data.map((b) => b.number).sort()).toEqual(["A-1", "A-2"]);
+    expect(await statusOf("A-3")).toBe("done");
+
+    const history = await loadHistory(client, a1);
+    expect(history).toEqual({
+      ok: true,
+      data: [
+        expect.objectContaining({
+          previousStatus: "not_yet",
+          newStatus: "reserved",
+          displayName: "はなこ",
+          note: null,
+        }),
+      ],
+    });
+    const mine = await loadMyReservedBoardIds(client);
+    expect(mine.ok && [...mine.data].sort()).toEqual([a1, a2].sort());
+    expect(await loadMyReservedBoardIds(other)).toEqual({ ok: true, data: [theirs] });
+  });
+
+  test("一度に 30 か所まで。31 か所は DB でも断る", async () => {
+    const ids = await Promise.all(Array.from({ length: 31 }, (_, i) => insertBoard(`B-${i + 1}`)));
+    const { client } = await signInVolunteer("はなこ");
+    expect(await reserveBoards(client, ids)).toEqual({
+      ok: false,
+      error: "一度に予約できるのは30か所までです。投票区を減らしてください。",
+    });
+    const { error } = await client.rpc("reserve_boards", { p_board_ids: ids });
+    expect(error?.message).toBe("too_many_boards");
+    const ok = await reserveBoards(client, ids.slice(0, 30));
+    expect(ok.ok && ok.data).toHaveLength(30);
+  });
+
+  test("自分の予約だけを未貼付に戻す。予約のあと完了になった掲示板・ほかの人の予約は戻さない", async () => {
+    const a1 = await insertBoard("A-1");
+    const a2 = await insertBoard("A-2");
+    const theirs = await insertBoard("A-3");
+    const { client: other } = await signInVolunteer("たろう");
+    const { client } = await signInVolunteer("はなこ");
+    await reserveBoards(client, [a1, a2]);
+    await reserveBoards(other, [theirs]);
+    await updateStatus(other, { boardId: a2, status: "done", note: "" });
+
+    const released = await releaseMyReservations(client);
+    expect(released.ok && released.data.map((b) => [b.number, b.status])).toEqual([
+      ["A-1", "not_yet"],
+    ]);
+    expect(await statusOf("A-2")).toBe("done");
+    expect(await statusOf("A-3")).toBe("reserved");
+    expect(await loadMyReservedBoardIds(client)).toEqual({ ok: true, data: [] });
+    const history = await loadHistory(client, a1);
+    expect(history.ok && history.data[0]).toEqual(
+      expect.objectContaining({
+        previousStatus: "reserved",
+        newStatus: "not_yet",
+        displayName: "はなこ",
+      }),
+    );
+  });
+
+  test("ほかの人が予約し直した掲示板は、自分の予約ではなくなる", async () => {
+    const a1 = await insertBoard("A-1");
+    const { client } = await signInVolunteer("はなこ");
+    const { client: other } = await signInVolunteer("たろう");
+    await reserveBoards(client, [a1]);
+    await updateStatus(other, { boardId: a1, status: "reserved", note: "代わりに行きます" });
+    expect(await loadMyReservedBoardIds(client)).toEqual({ ok: true, data: [] });
+    expect(await releaseMyReservations(client)).toEqual({ ok: true, data: [] });
+    expect(await statusOf("A-1")).toBe("reserved");
+  });
+
+  test("参加していない人・停止された人は、予約も戻すこともできない", async () => {
+    const a1 = await insertBoard("A-1");
+    const { client: stranger } = await signInAnon();
+    const notVolunteer = { ok: false, error: "報告するには参加の手続きが必要です。" };
+    expect(await reserveBoards(stranger, [a1])).toEqual(notVolunteer);
+    expect(await releaseMyReservations(stranger)).toEqual(notVolunteer);
+    const { client, userId } = await signInVolunteer("はなこ");
+    await revokeVolunteer(userId);
+    expect(await reserveBoards(client, [a1])).toEqual(notVolunteer);
+    expect(await statusOf("A-1")).toBe("not_yet");
+  });
+
+  test("未ログインは呼べない", async () => {
+    const { error } = await anonClient().rpc("reserve_boards", { p_board_ids: [] });
+    expect(error).not.toBeNull();
+    expect(await loadMyReservedBoardIds(anonClient())).toEqual({ ok: true, data: [] });
   });
 });

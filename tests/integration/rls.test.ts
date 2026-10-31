@@ -407,6 +407,9 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
     { signature: "public.admin_list_members()", anon: false, authenticated: true },
     { signature: "public.admin_add_member(text, text)", anon: false, authenticated: true },
     { signature: "public.admin_remove_member(text)", anon: false, authenticated: true },
+    { signature: "public.my_reserved_board_ids()", anon: false, authenticated: true },
+    { signature: "public.reserve_boards(uuid[])", anon: false, authenticated: true },
+    { signature: "public.release_my_reservations()", anon: false, authenticated: true },
   ] as const;
 
   test("public スキーマの全関数について anon / authenticated / public の権限が意図どおり", async () => {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FALLBACK_MESSAGE, toUserMessage } from "../errors";
-import { DISPLAY_NAME_MAX_LENGTH, NOTE_MAX_LENGTH } from "../limits";
+import { BULK_RESERVE_MAX, DISPLAY_NAME_MAX_LENGTH, NOTE_MAX_LENGTH } from "../limits";
 import { LOAD_ERROR } from "../public-boards";
 import { type BoardStatus, PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
 
@@ -216,7 +216,9 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           </li>
           <li>
             向かう掲示場のピンを押して「{STATUS_CONFIG.reserved.label}
-            」で報告する。ほかの人の地図で黄色になり、同じ場所に二人で向かうのを防げます。
+            」で報告する。ほかの人の地図で黄色になり、同じ場所に二人で向かうのを防げます。その日に回る投票区がはっきりしているときは、検索欄の下の「選んでいる投票区の未貼付
+            〇か所をまとめて予約」で、選んでいる投票区の{STATUS_CONFIG.not_yet.label}
+            をまとめて予約できます（一度に{BULK_RESERVE_MAX}か所まで）。
           </li>
           <li>ピンの「Google マップ」「Apple マップ」で道案内を始めて、掲示場へ向かう。</li>
           <li>
@@ -226,7 +228,8 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           </li>
           <li>
             予約したけれど回りきれなかった掲示場は、その日のうちに「{STATUS_CONFIG.not_yet.label}
-            」に戻す。ほかの人が向かえるようになります（
+            」に戻す。ほかの人が向かえるようになります。「自分の予約 〇か所をまとめて
+            {STATUS_CONFIG.not_yet.label}に戻す」で、自分の予約を一度に戻せます（
             <a href="#report" className="underline">
               報告する
             </a>
@@ -340,6 +343,19 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           <li>
             予約は時間がたっても消えません。行けなくなったら、必ず「{STATUS_CONFIG.not_yet.label}
             」に戻してください。
+          </li>
+          <li>
+            投票区を選ぶと、検索欄の下に「選んでいる投票区の{STATUS_CONFIG.not_yet.label}
+            〇か所をまとめて予約」が出ます。押すと、確かめる画面のあとで、選んでいる投票区の
+            {STATUS_CONFIG.not_yet.label}
+            をまとめて予約します。一度に予約できるのは{BULK_RESERVE_MAX}
+            か所までです。超えるときは、投票区を減らしてください。
+          </li>
+          <li>
+            自分の予約があると、検索欄の下に「自分の予約 〇か所をまとめて
+            {STATUS_CONFIG.not_yet.label}
+            に戻す」が出ます。貼り終えた掲示場は、先にピンから「{STATUS_CONFIG.done.label}
+            」で報告してから使ってください。
           </li>
           <li>予約しても、ほかの人が報告できなくなるわけではありません。</li>
         </ul>
