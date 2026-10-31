@@ -201,6 +201,7 @@ export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
           <SummaryBar boards={boards} isVolunteer={isVolunteer} />
           <PosterMap
             boards={filter.filteredBoards}
+            allBoards={boards}
             onBoardClick={handleBoardClick}
             isVolunteer={isVolunteer}
             controls={

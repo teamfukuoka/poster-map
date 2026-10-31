@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "./poster-map.css";
 import { Expand, LocateFixed, Minimize } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_ZOOM, MAP_CENTER, MAX_ZOOM } from "../area";
 import { flyToBoard } from "../fly-to-board";
@@ -17,6 +17,7 @@ import {
   markerIconHtml,
   offsetPosition,
 } from "../marker-icons";
+import { type DistrictHit, isInDistrict } from "../search";
 import { countByStatus } from "../stats";
 import type { MapBoard } from "../types";
 import { BoardSearch } from "./board-search";
@@ -26,6 +27,8 @@ type MarkerWithBoard = L.Marker & { board?: MapBoard };
 type Props = {
   /** フィルター適用後の掲示板 */
   boards: readonly MapBoard[];
+  /** 検索の対象（フィルターに関係なく全部） */
+  allBoards: readonly MapBoard[];
   onBoardClick: (board: MapBoard) => void;
   /** 参加中のボランティアか。クラスタのツールチップの呼び方を変える */
   isVolunteer: boolean;
@@ -49,7 +52,13 @@ function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   });
 }
 
-export default function PosterMap({ boards, onBoardClick, isVolunteer, controls }: Props) {
+export default function PosterMap({
+  boards,
+  allBoards,
+  onBoardClick,
+  isVolunteer,
+  controls,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -60,6 +69,13 @@ export default function PosterMap({ boards, onBoardClick, isVolunteer, controls 
   const isVolunteerRef = useRef(isVolunteer);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  /** 検索で選んだ投票区。選んでいる間は、その投票区のピンだけを出す */
+  const [district, setDistrict] = useState<string | null>(null);
+
+  const shownBoards = useMemo(
+    () => (district ? boards.filter((b) => isInDistrict(b, district)) : boards),
+    [boards, district],
+  );
 
   useEffect(() => {
     isVolunteerRef.current = isVolunteer;
@@ -119,7 +135,7 @@ export default function PosterMap({ boards, onBoardClick, isVolunteer, controls 
     cluster.clearLayers();
 
     const byLocation = new Map<string, MapBoard[]>();
-    for (const board of boards) {
+    for (const board of shownBoards) {
       const key = `${board.lat.toFixed(6)}_${board.long.toFixed(6)}`;
       byLocation.set(key, [...(byLocation.get(key) ?? []), board]);
     }
@@ -150,7 +166,7 @@ export default function PosterMap({ boards, onBoardClick, isVolunteer, controls 
       });
     }
     cluster.addLayers(markers);
-  }, [boards, onBoardClick]);
+  }, [shownBoards, onBoardClick]);
 
   // 現在地はボタンを押したときだけ取得する（送信しない・追跡しない）
   const handleLocate = () => {
@@ -190,7 +206,23 @@ export default function PosterMap({ boards, onBoardClick, isVolunteer, controls 
     const map = mapRef.current;
     if (!map) return;
     lastSearchedRef.current = board;
+    // 絞っている投票区の外を選んだら、ピンが見えるように絞り込みをやめる
+    if (district && !isInDistrict(board, district)) setDistrict(null);
     flyToBoard(map, board, MAX_ZOOM, (b) => lastSearchedRef.current === b, onBoardClick);
+  };
+
+  // 投票区を選んだら、その投票区の掲示板が全部入るように寄る
+  const handleDistrictSelect = (hit: DistrictHit) => {
+    const map = mapRef.current;
+    if (!map) return;
+    lastSearchedRef.current = null;
+    setDistrict(hit.district);
+    const points = allBoards
+      .filter((b) => isInDistrict(b, hit.district))
+      .map((b): [number, number] => [b.lat, b.long]);
+    if (points.length > 0) {
+      map.flyToBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 17, duration: 1 });
+    }
   };
 
   useEffect(() => {
@@ -215,41 +247,66 @@ export default function PosterMap({ boards, onBoardClick, isVolunteer, controls 
 
   const bottom = isFullscreen ? "calc(1rem + env(safe-area-inset-bottom))" : "1rem";
 
+  const search = (
+    <BoardSearch
+      boards={allBoards}
+      onSelect={handleSearchSelect}
+      onSelectDistrict={handleDistrictSelect}
+      district={district}
+      onClearDistrict={() => setDistrict(null)}
+      compact={isFullscreen}
+    />
+  );
+
+  // 検索欄は地図の外（上）に置く。全画面のときは、画面の上の端に帯にして出す
   return (
     <div
-      className={
-        isFullscreen
-          ? "fixed inset-0 z-50 bg-background"
-          : "relative z-0 h-[65vh] min-h-[420px] w-full"
-      }
+      className={isFullscreen ? "fixed inset-0 z-50 flex flex-col bg-background" : "space-y-2"}
       style={isFullscreen ? { height: "100dvh", width: "100dvw" } : undefined}
     >
-      <div ref={containerRef} className="h-full w-full" />
-
-      <BoardSearch boards={boards} onSelect={handleSearchSelect} />
-      {controls}
-
-      <button
-        type="button"
-        onClick={() => setIsFullscreen((v) => !v)}
-        className="absolute left-4 z-[1000] rounded-full border border-border bg-background p-3 text-ink shadow-card hover:bg-brand-light"
-        style={{ bottom }}
-        aria-label={isFullscreen ? "全画面表示を終える" : "全画面で表示"}
-        title={isFullscreen ? "全画面表示を終える（Esc）" : "全画面で表示"}
+      <div
+        className={
+          isFullscreen
+            ? "relative z-10 border-border border-b bg-background px-2 pb-2"
+            : "relative z-10"
+        }
+        style={isFullscreen ? { paddingTop: "calc(0.5rem + env(safe-area-inset-top))" } : undefined}
       >
-        {isFullscreen ? <Minimize size={20} /> : <Expand size={20} />}
-      </button>
-
-      <button
-        type="button"
-        onClick={handleLocate}
-        disabled={isLocating}
-        className="absolute right-4 z-[1000] flex min-h-11 items-center gap-1 rounded-full border-2 border-brand bg-background px-4 py-2 font-bold text-brand-dark shadow-card hover:bg-brand-light disabled:opacity-60"
-        style={{ bottom }}
+        {search}
+      </div>
+      <div
+        className={
+          isFullscreen
+            ? "relative z-0 min-h-0 w-full flex-1"
+            : "relative z-0 h-[65vh] min-h-[420px] w-full"
+        }
       >
-        <LocateFixed size={18} />
-        {isLocating ? "取得中…" : "現在地"}
-      </button>
+        <div ref={containerRef} className="h-full w-full" />
+
+        {controls}
+
+        <button
+          type="button"
+          onClick={() => setIsFullscreen((v) => !v)}
+          className="absolute left-4 z-[1000] rounded-full border border-border bg-background p-3 text-ink shadow-card hover:bg-brand-light"
+          style={{ bottom }}
+          aria-label={isFullscreen ? "全画面表示を終える" : "全画面で表示"}
+          title={isFullscreen ? "全画面表示を終える（Esc）" : "全画面で表示"}
+        >
+          {isFullscreen ? <Minimize size={20} /> : <Expand size={20} />}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleLocate}
+          disabled={isLocating}
+          className="absolute right-4 z-[1000] flex min-h-11 items-center gap-1 rounded-full border-2 border-brand bg-background px-4 py-2 font-bold text-brand-dark shadow-card hover:bg-brand-light disabled:opacity-60"
+          style={{ bottom }}
+        >
+          <LocateFixed size={18} />
+          {isLocating ? "取得中…" : "現在地"}
+        </button>
+      </div>
     </div>
   );
 }

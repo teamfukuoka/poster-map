@@ -1,4 +1,12 @@
-import { normalizeForSearch, SEARCH_MAX_RESULTS, searchBoards } from "./search";
+import {
+  DISTRICT_MAX_RESULTS,
+  isInDistrict,
+  normalizeForSearch,
+  SEARCH_MAX_RESULTS,
+  searchBoards,
+  searchDistricts,
+  splitBoardNumber,
+} from "./search";
 
 const boards = [
   { number: "別府第１-1", name: "人道橋東側", address: "城南区別府四丁目７番", ward: "城南区" },
@@ -52,4 +60,45 @@ test("最大件数で打ち切る", () => {
     ward: "中央区",
   }));
   expect(searchBoards(many, "掲示板")).toHaveLength(SEARCH_MAX_RESULTS);
+});
+
+test("splitBoardNumber は最後の「-数字」の前を投票区にする", () => {
+  expect(splitBoardNumber("筥松第二-6")).toEqual({ district: "筥松第二", seq: "6" });
+  expect(splitBoardNumber("別府第１-12")).toEqual({ district: "別府第１", seq: "12" });
+  expect(splitBoardNumber("番号なし")).toEqual({ district: null, seq: "番号なし" });
+});
+
+describe("searchDistricts", () => {
+  const items = [
+    { number: "馬出第一-1", ward: "東区" },
+    { number: "馬出第一-2", ward: "東区" },
+    { number: "東馬出-1", ward: "東区" },
+    { number: "馬出第二-1", ward: "東区" },
+    { number: "別府第１-1", ward: "城南区" },
+  ];
+
+  test("投票区ごとに掲示板の数をまとめ、前方一致を先に出す", () => {
+    expect(searchDistricts(items, "馬出")).toEqual([
+      { district: "馬出第一", ward: "東区", count: 2 },
+      { district: "馬出第二", ward: "東区", count: 1 },
+      { district: "東馬出", ward: "東区", count: 1 },
+    ]);
+  });
+
+  test("全角・半角の違いを吸収する", () => {
+    expect(searchDistricts(items, "別府第1")).toEqual([
+      { district: "別府第１", ward: "城南区", count: 1 },
+    ]);
+  });
+
+  test("1文字では探さない・最大件数で打ち切る", () => {
+    expect(searchDistricts(items, "馬")).toEqual([]);
+    const wide = Array.from({ length: 9 }, (_, i) => ({ number: `投票区${i}-1`, ward: "東区" }));
+    expect(searchDistricts(wide, "投票区")).toHaveLength(DISTRICT_MAX_RESULTS);
+  });
+});
+
+test("isInDistrict", () => {
+  expect(isInDistrict({ number: "馬出第一-3" }, "馬出第一")).toBe(true);
+  expect(isInDistrict({ number: "東馬出-1" }, "馬出")).toBe(false);
 });

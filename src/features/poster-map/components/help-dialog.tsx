@@ -48,7 +48,9 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
           <h3 className="font-semibold">操作</h3>
           <ul className="list-disc space-y-1 pl-5">
             <li>ピンを押すと、掲示板の番号・住所と地図アプリへのリンクが出ます。</li>
-            <li>上の検索欄に、番号・名称・住所の一部を入れると探せます。</li>
+            <li>
+              地図の上の「掲示板を探す」に、投票区・場所・住所の一部を入れると探せます。投票区を選ぶと、その投票区のピンだけを表示します。
+            </li>
             <li>右上の「フィルター」で、表示する状況を絞り込めます。</li>
             <li>
               現在地ボタンを押すと、今いる場所を地図に表示します。位置情報は、この端末の中だけで使います。
