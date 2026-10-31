@@ -1191,7 +1191,14 @@ describe("admin service", () => {
     await insertBoard("C-2", "reserved", "東区");
     await setBoardArea("C-1", { school: "馬出小", town: "馬出", chome: "1丁目" });
     const { client } = await signInStaff("operator");
-    const range = { kind: "town", ward: "東区", school: null, town: "馬出", chome: null } as const;
+    const range = {
+      kind: "town",
+      ward: "東区",
+      district: null,
+      school: null,
+      town: "馬出",
+      chome: null,
+    } as const;
     expect(
       await createCoverageAssignee(client, { label: "田中さん", note: "", ranges: [range] }),
     ).toEqual({ ok: true, data: null });
@@ -1259,7 +1266,9 @@ describe("admin service", () => {
   test("updated_at は文字列のまま往復でき、古い値は stale_assignee の文言になる", async () => {
     await insertBoard("C-1", "not_yet", "東区");
     const { client } = await signInStaff("operator");
-    const ranges = [{ kind: "ward", ward: "東区", school: null, town: null, chome: null }] as const;
+    const ranges = [
+      { kind: "ward", ward: "東区", district: null, school: null, town: null, chome: null },
+    ] as const;
     await createCoverageAssignee(client, { label: "田中さん", note: "", ranges: [...ranges] });
     const first = await loadCoverage(client);
     if (!first.ok) throw new Error("load failed");
@@ -1305,7 +1314,14 @@ describe("admin service", () => {
   test("担当者の入力エラーは文言になる", async () => {
     await insertBoard("C-1", "not_yet", "東区");
     const { client } = await signInStaff("operator");
-    const ward = { kind: "ward", ward: "東区", school: null, town: null, chome: null } as const;
+    const ward = {
+      kind: "ward",
+      ward: "東区",
+      district: null,
+      school: null,
+      town: null,
+      chome: null,
+    } as const;
     expect(await createCoverageAssignee(client, { label: "  ", note: "", ranges: [ward] })).toEqual(
       {
         ok: false,

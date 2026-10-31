@@ -24,6 +24,7 @@ import type {
 
 const range = (r: Partial<CoverageRange> & { kind: CoverageKind }): CoverageRange => ({
   ward: null,
+  district: null,
   school: null,
   town: null,
   chome: null,
@@ -32,6 +33,7 @@ const range = (r: Partial<CoverageRange> & { kind: CoverageKind }): CoverageRang
 
 const row = (r: Partial<CoverageSummaryRow> & { unit: CoverageKind }): CoverageSummaryRow => ({
   ward: null,
+  district: null,
   school: null,
   town: null,
   chome: null,
@@ -53,8 +55,11 @@ const assignee = (id: string, label: string, ranges: CoverageRange[]): CoverageA
 });
 
 describe("rangeLabel", () => {
-  test("4 種類", () => {
+  test("5 種類", () => {
     expect(rangeLabel(range({ kind: "ward", ward: "東区" }))).toBe("東区");
+    expect(rangeLabel(range({ kind: "district", ward: "東区", district: "馬出第一" }))).toBe(
+      "東区 馬出第一（投票区）",
+    );
     expect(rangeLabel(range({ kind: "school", school: "馬出小" }))).toBe("馬出小（校区）");
     expect(rangeLabel(range({ kind: "town", ward: "東区", town: "馬出" }))).toBe("東区 馬出");
     expect(rangeLabel(range({ kind: "chome", ward: "東区", town: "馬出", chome: "3" }))).toBe(
@@ -70,6 +75,13 @@ describe("parseRanges", () => {
       range({ kind: "town", ward: "東区", town: "馬出" }),
     ];
     expect(parseRanges(ok)).toEqual(ok);
+  });
+  test("投票区を読み、district が無い古い形は null として読む", () => {
+    const district = range({ kind: "district", ward: "東区", district: "馬出第一" });
+    expect(parseRanges([district])).toEqual([district]);
+    const { district: _, ...old } = range({ kind: "town", ward: "東区", town: "馬出" });
+    expect(parseRanges([old])).toEqual([range({ kind: "town", ward: "東区", town: "馬出" })]);
+    expect(parseRanges([{ ...district, district: 1 }])).toBeNull();
   });
   test("形が違えば null", () => {
     expect(parseRanges("x")).toBeNull();
@@ -88,6 +100,8 @@ test("chomeLabel は数字に「丁目」を付ける", () => {
 describe("buildPlaces と searchPlaces", () => {
   const summary: CoverageSummaryRow[] = [
     row({ unit: "ward", ward: "東区", total: 100 }),
+    row({ unit: "district", ward: "東区", district: "馬出第一", total: 6 }),
+    row({ unit: "district", ward: "博多区", district: "馬出第一", total: 2 }),
     row({ unit: "school", ward: "南区", school: "宮竹小", total: 3 }),
     row({ unit: "school", ward: "博多区", school: "宮竹小", total: 2 }),
     row({ unit: "school", ward: "東区", school: null, total: 7 }),
@@ -109,9 +123,30 @@ describe("buildPlaces と searchPlaces", () => {
     ]);
   });
 
+  test("投票区は区ごとに別の場所", () => {
+    const districts = buildPlaces(summary).filter((p) => p.kind === "district");
+    expect(districts).toEqual([
+      {
+        kind: "district",
+        range: range({ kind: "district", ward: "東区", district: "馬出第一" }),
+        label: "東区 馬出第一（投票区）",
+        wards: ["東区"],
+        boardCount: 6,
+      },
+      {
+        kind: "district",
+        range: range({ kind: "district", ward: "博多区", district: "馬出第一" }),
+        label: "博多区 馬出第一（投票区）",
+        wards: ["博多区"],
+        boardCount: 2,
+      },
+    ]);
+  });
+
   test("検索は前後の空白を取り、kind の順、次に label の順", () => {
     const places = buildPlaces(summary);
-    expect(searchPlaces(places, " 馬出 ").places.map((p) => p.label)).toEqual([
+    expect(searchPlaces(places, " 東区馬出 ").places.map((p) => p.label)).toEqual([
+      "東区 馬出第一（投票区）",
       "東区 馬出",
       "東区 馬出 1丁目",
       "東区 馬出 10丁目",
@@ -141,7 +176,7 @@ describe("buildPlaces と searchPlaces", () => {
     const places = buildPlaces(summary);
     const result = searchPlaces(places, "区", 2);
     expect(result.places).toHaveLength(2);
-    expect(result.more).toBe(3);
+    expect(result.more).toBe(5);
     expect(searchPlaces(places, "区", 20).more).toBe(0);
   });
 });
@@ -188,6 +223,7 @@ describe("boardsInRow", () => {
       status: "not_yet",
       school: null,
       school_source: null,
+      district: null,
       town: null,
       chome: null,
       coverage: "none",
@@ -195,14 +231,29 @@ describe("boardsInRow", () => {
       ...b,
     }) as CoverageBoard;
   const boards = [
-    board({ number: "1", ward: "東区", school: "馬出小", town: "馬出", chome: "1" }),
+    board({
+      number: "1",
+      ward: "東区",
+      district: "馬出第一",
+      school: "馬出小",
+      town: "馬出",
+      chome: "1",
+    }),
     board({ number: "2", ward: "東区", school: "馬出小", town: "馬出", chome: "2" }),
-    board({ number: "3", ward: "南区", school: "馬出小", town: "馬出", chome: "1" }),
+    board({
+      number: "3",
+      ward: "南区",
+      district: "馬出第一",
+      school: "馬出小",
+      town: "馬出",
+      chome: "1",
+    }),
     board({ number: "4", ward: "東区" }),
   ];
   test("単位ごとに当たる掲示場を返す", () => {
     const pick = (r: CoverageSummaryRow) => boardsInRow(boards, r).map((b) => b.number);
     expect(pick(row({ unit: "ward", ward: "東区" }))).toEqual(["1", "2", "4"]);
+    expect(pick(row({ unit: "district", ward: "東区", district: "馬出第一" }))).toEqual(["1"]);
     expect(pick(row({ unit: "school", ward: "東区", school: "馬出小" }))).toEqual(["1", "2"]);
     expect(pick(row({ unit: "town", ward: "東区", town: "馬出" }))).toEqual(["1", "2"]);
     expect(pick(row({ unit: "chome", ward: "東区", town: "馬出", chome: "1" }))).toEqual(["1"]);
@@ -214,6 +265,9 @@ test("rangeKey は範囲ごとに違い、同じ範囲で同じ", () => {
   const a = range({ kind: "town", ward: "東区", town: "馬出" });
   expect(rangeKey(a)).toBe(rangeKey({ ...a }));
   expect(rangeKey(a)).not.toBe(rangeKey(range({ kind: "ward", ward: "東区" })));
+  expect(rangeKey(range({ kind: "district", ward: "東区", district: "馬出第一" }))).not.toBe(
+    rangeKey(range({ kind: "district", ward: "博多区", district: "馬出第一" })),
+  );
 });
 
 test("formatShare", () => {

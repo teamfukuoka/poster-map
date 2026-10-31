@@ -53,6 +53,22 @@ test("単位を切り替えると行が変わる", () => {
   expect(screen.queryByText("宮竹小")).not.toBeInTheDocument();
 });
 
+test("投票区の単位では、投票区の行が区の名前つきで出る", () => {
+  render(<Harness />);
+  fireEvent.click(screen.getByRole("button", { name: "投票区" }));
+  expect(rowOf("馬出第一")).toHaveTextContent("東区");
+  expect(screen.getByText("箱崎第一")).toBeInTheDocument();
+  expect(screen.queryByText("馬出小")).not.toBeInTheDocument();
+});
+
+test("投票区の行を押すと、その投票区の掲示場が出る", () => {
+  render(<Harness />);
+  fireEvent.click(screen.getByRole("button", { name: "投票区" }));
+  fireEvent.click(within(rowOf("箱崎第一")).getByRole("button"));
+  expect(screen.getByText("東-003")).toBeInTheDocument();
+  expect(screen.queryByText("東-001")).not.toBeInTheDocument();
+});
+
 test("校区が null の行は「校区なし」と出る", () => {
   render(<Harness />);
   fireEvent.click(screen.getByRole("button", { name: "校区" }));

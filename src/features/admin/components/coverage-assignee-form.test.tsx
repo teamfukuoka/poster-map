@@ -80,6 +80,7 @@ test("候補が上限で切れたら、残りの件数を知らせる", () => {
   const many = Array.from({ length: 25 }, (_, i) => ({
     unit: "town" as const,
     ward: "東区",
+    district: null,
     school: null,
     town: `町${String(i).padStart(2, "0")}`,
     chome: null,
@@ -118,6 +119,28 @@ test("区 → 校区・町名 と順に選んでも足せる", () => {
   // 区ぜんぶも足せる
   fireEvent.click(screen.getByRole("button", { name: "区ぜんぶを足す" }));
   expect(within(chosen).getByText("東区")).toBeInTheDocument();
+});
+
+test("区 → 投票区 と選ぶと、その区の投票区だけが出て足せる", () => {
+  renderForm();
+  expect(screen.getByLabelText("投票区")).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("区"), { target: { value: "東区" } });
+  const options = within(screen.getByLabelText("投票区"))
+    .getAllByRole("option")
+    .map((o) => o.textContent);
+  expect(options).toEqual(["投票区を選ぶ", "馬出第一（6か所）", "箱崎第一（4か所）"]);
+  fireEvent.change(screen.getByLabelText("投票区"), { target: { value: "箱崎第一" } });
+  fireEvent.click(screen.getByRole("button", { name: "投票区を足す" }));
+  const chosen = screen.getByRole("list", { name: "選んだ範囲" });
+  expect(within(chosen).getByText("東区 箱崎第一（投票区）")).toBeInTheDocument();
+  expect(screen.getByLabelText("投票区")).toHaveValue("");
+});
+
+test("投票区は地名の検索でも見つかる", () => {
+  renderForm();
+  addBySearch("馬出第一", /^東区 馬出第一（投票区） 投票区/);
+  const chosen = screen.getByRole("list", { name: "選んだ範囲" });
+  expect(within(chosen).getByText("東区 馬出第一（投票区）")).toBeInTheDocument();
 });
 
 test("既存と同じ呼び名なら知らせるが、登録は押せる", async () => {

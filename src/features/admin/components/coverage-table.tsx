@@ -11,6 +11,7 @@ const NOWRAP = "whitespace-nowrap";
 
 const UNITS: { unit: CoverageKind; label: string }[] = [
   { unit: "ward", label: "区" },
+  { unit: "district", label: "投票区" },
   { unit: "school", label: "校区" },
   { unit: "town", label: "町名" },
 ];
@@ -23,6 +24,7 @@ export function isSameRow(a: CoverageSummaryRow, b: CoverageSummaryRow): boolean
   return (
     a.unit === b.unit &&
     a.ward === b.ward &&
+    a.district === b.district &&
     a.school === b.school &&
     a.town === b.town &&
     a.chome === b.chome
@@ -30,14 +32,16 @@ export function isSameRow(a: CoverageSummaryRow, b: CoverageSummaryRow): boolean
 }
 
 function rowKey(r: CoverageSummaryRow): string {
-  return JSON.stringify([r.unit, r.ward, r.school, r.town, r.chome]);
+  return JSON.stringify([r.unit, r.ward, r.district, r.school, r.town, r.chome]);
 }
 
-/** 行の地名。校区・町名の表にない行は null の代わりの言葉を出す */
+/** 行の地名。投票区が取れない行・校区・町名の表にない行は null の代わりの言葉を出す */
 export function rowName(r: CoverageSummaryRow): string {
   switch (r.unit) {
     case "ward":
       return r.ward ?? "区なし";
+    case "district":
+      return r.district ?? "投票区なし";
     case "school":
       return r.school ?? "校区なし";
     case "town":
@@ -61,7 +65,7 @@ type Props = {
   onSelect: (row: CoverageSummaryRow | null) => void;
 };
 
-/** 区・校区・町名ごとの一覧。行を押すと、その範囲の掲示場を下に出す */
+/** 区・投票区・校区・町名ごとの一覧。行を押すと、その範囲の掲示場を下に出す */
 export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
   const [unit, setUnit] = useState<CoverageKind>("ward");
   const [ward, setWard] = useState<string | null>(null);

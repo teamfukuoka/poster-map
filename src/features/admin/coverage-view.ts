@@ -8,7 +8,7 @@ import type {
   CoverageSummaryRow,
 } from "./types";
 
-const KINDS: readonly CoverageKind[] = ["ward", "school", "town", "chome"];
+const KINDS: readonly CoverageKind[] = ["ward", "district", "school", "town", "chome"];
 
 function kindOrder(kind: CoverageKind): number {
   return KINDS.indexOf(kind);
@@ -51,13 +51,20 @@ export function parseRanges(value: unknown): CoverageRange[] | null {
     const o = item as Record<string, unknown>;
     if (!isKind(o.kind)) return null;
     const ward = stringOrNull(o.ward);
+    const district = stringOrNull(o.district);
     const school = stringOrNull(o.school);
     const town = stringOrNull(o.town);
     const chome = stringOrNull(o.chome);
-    if (ward === undefined || school === undefined || town === undefined || chome === undefined) {
+    if (
+      ward === undefined ||
+      district === undefined ||
+      school === undefined ||
+      town === undefined ||
+      chome === undefined
+    ) {
       return null;
     }
-    out.push({ kind: o.kind, ward, school, town, chome });
+    out.push({ kind: o.kind, ward, district, school, town, chome });
   }
   return out;
 }
@@ -71,6 +78,8 @@ export function rangeLabel(r: CoverageRange): string {
   switch (r.kind) {
     case "ward":
       return r.ward ?? "";
+    case "district":
+      return `${r.ward ?? ""} ${r.district ?? ""}（投票区）`;
     case "school":
       return `${r.school ?? ""}（校区）`;
     case "town":
@@ -82,7 +91,7 @@ export function rangeLabel(r: CoverageRange): string {
 
 /** 重なりの判定と React の key */
 export function rangeKey(r: CoverageRange): string {
-  return JSON.stringify([r.kind, r.ward, r.school, r.town, r.chome]);
+  return JSON.stringify([r.kind, r.ward, r.district, r.school, r.town, r.chome]);
 }
 
 /** 選べる場所の一覧。校区は区をまたいで 1 つにまとめる（school が null の行は除く） */
@@ -101,6 +110,7 @@ export function buildPlaces(summary: CoverageSummaryRow[]): Place[] {
       const range: CoverageRange = {
         kind: "school",
         ward: null,
+        district: null,
         school: r.school,
         town: null,
         chome: null,
@@ -117,15 +127,19 @@ export function buildPlaces(summary: CoverageSummaryRow[]): Place[] {
       continue;
     }
     let range: CoverageRange;
+    const empty = { district: null, school: null, town: null, chome: null };
     if (r.unit === "ward") {
       if (r.ward === null) continue;
-      range = { kind: "ward", ward: r.ward, school: null, town: null, chome: null };
+      range = { ...empty, kind: "ward", ward: r.ward };
+    } else if (r.unit === "district") {
+      if (r.ward === null || r.district === null) continue;
+      range = { ...empty, kind: "district", ward: r.ward, district: r.district };
     } else if (r.unit === "town") {
       if (r.ward === null || r.town === null) continue;
-      range = { kind: "town", ward: r.ward, school: null, town: r.town, chome: null };
+      range = { ...empty, kind: "town", ward: r.ward, town: r.town };
     } else {
       if (r.ward === null || r.town === null || r.chome === null) continue;
-      range = { kind: "chome", ward: r.ward, school: null, town: r.town, chome: r.chome };
+      range = { ...empty, kind: "chome", ward: r.ward, town: r.town, chome: r.chome };
     }
     places.push({
       kind: r.unit,
@@ -161,6 +175,7 @@ export function searchPlaces(
 }
 
 function nameOf(r: CoverageSummaryRow): string | null {
+  if (r.unit === "district") return r.district;
   if (r.unit === "school") return r.school;
   if (r.unit === "town") return r.town;
   if (r.unit === "chome") return r.chome;
@@ -200,6 +215,7 @@ export function chomeRowsOf(
 
 function isInRow(b: CoverageBoard, row: CoverageSummaryRow): boolean {
   if (b.ward !== row.ward) return false;
+  if (row.unit === "district") return b.district === row.district;
   if (row.unit === "school") return b.school === row.school;
   if (row.unit === "town") return b.town === row.town;
   if (row.unit === "chome") return b.town === row.town && b.chome === row.chome;

@@ -13,8 +13,9 @@ beforeEach(async () => {
 });
 
 type Range = {
-  kind: "ward" | "school" | "town" | "chome";
+  kind: "ward" | "district" | "school" | "town" | "chome";
   ward?: string | null;
+  district?: string | null;
   school?: string | null;
   town?: string | null;
   chome?: string | null;
@@ -96,7 +97,7 @@ describe("権限", () => {
     expect(rows[0].id).toBe(id);
     expect(rows[0].label).toBe("田中さん");
     expect(rows[0].ranges).toEqual([
-      { kind: "ward", ward: "中央区", school: null, town: null, chome: null },
+      { kind: "ward", ward: "中央区", district: null, school: null, town: null, chome: null },
     ]);
     expect(rows[0].board_count).toBe(1);
 
@@ -166,6 +167,31 @@ describe("判定", () => {
       expect(row.total).toBe(1);
       expect(row.assigned).toBe(1);
     }
+  });
+
+  test("投票区は番号の「-数字」より前で決まり、区が違えば含まない", async () => {
+    await insertBoard("馬出第一-1", "not_yet", "東区");
+    await insertBoard("馬出第一-12", "not_yet", "東区");
+    await insertBoard("馬出第二-1", "not_yet", "東区");
+    await insertBoard("馬出第一-2", "not_yet", "博多区");
+    // 表（board_areas）に無い掲示場でも投票区は決まる
+    const { client } = await signInStaff("operator");
+    await createAssignee(client, [{ kind: "district", ward: "東区", district: "馬出第一" }]);
+    const boards = await listBoards(client);
+    expect(coverageOf(boards, "馬出第一-1")).toBe("assigned");
+    expect(coverageOf(boards, "馬出第一-12")).toBe("assigned");
+    expect(coverageOf(boards, "馬出第二-1")).toBe("none");
+    expect(coverageOf(boards, "馬出第一-2")).toBe("none");
+    expect(boards.find((b) => b.number === "馬出第一-12")?.district).toBe("馬出第一");
+    const rows = (await summary(client)).filter((r) => r.unit === "district");
+    expect(rows.map((r) => [r.ward, r.district, r.total, r.assigned])).toEqual([
+      ["博多区", "馬出第一", 1, 0],
+      ["東区", "馬出第一", 2, 2],
+      ["東区", "馬出第二", 1, 0],
+    ]);
+    expect(
+      rows.find((r) => r.ward === "東区" && r.district === "馬出第一")?.assignee_labels,
+    ).toEqual(["田中さん"]);
   });
 
   test("丁目の範囲はその丁目だけ", async () => {
@@ -307,6 +333,12 @@ describe("登録の入力", () => {
       [{ kind: "chome", ward: "中央区", town: "天神", chome: "1", school: "A小" }],
       [{ kind: "ward", ward: 1 }],
       ["ward"],
+      [{ kind: "district", district: "馬出第一" }],
+      [{ kind: "district", ward: "東区" }],
+      [{ kind: "district", ward: "東区", district: "" }],
+      [{ kind: "district", ward: "東区", district: "馬出第一", town: "馬出" }],
+      [{ kind: "ward", ward: "東区", district: "馬出第一" }],
+      [{ kind: "town", ward: "東区", town: "馬出", district: "馬出第一" }],
     ];
     for (const p_ranges of bad) {
       const { error } = await client.rpc("admin_create_coverage_assignee", {
@@ -332,6 +364,7 @@ describe("登録の入力", () => {
 
   test("掲示場のデータにない地名は unknown_coverage_place", async () => {
     await insertBoard("2", "not_yet", "城南区");
+    await insertBoard("天神-1", "not_yet", "中央区");
     await setBoardArea("1", { school: "A小", town: "天神", chome: "1" });
     await setBoardArea("2", { school: "B小", town: "鳥飼" });
     const { client } = await signInStaff("operator");
@@ -340,6 +373,8 @@ describe("登録の入力", () => {
       [{ kind: "school", school: "C小" }],
       [{ kind: "town", ward: "城南区", town: "天神" }],
       [{ kind: "chome", ward: "中央区", town: "天神", chome: "2" }],
+      [{ kind: "district", ward: "中央区", district: "天神第一" }],
+      [{ kind: "district", ward: "城南区", district: "天神" }],
       [
         { kind: "ward", ward: "中央区" },
         { kind: "ward", ward: "北区" },
@@ -357,7 +392,8 @@ describe("登録の入力", () => {
       ]);
     }
     await createAssignee(client, [{ kind: "chome", ward: "中央区", town: "天神", chome: "1" }]);
-    expect(await listAssignees(client)).toHaveLength(1);
+    await createAssignee(client, [{ kind: "district", ward: "中央区", district: "天神" }], "B班");
+    expect(await listAssignees(client)).toHaveLength(2);
   });
 
   test("同じ範囲が 2 回あれば 1 つにまとめる", async () => {
@@ -368,23 +404,29 @@ describe("登録の入力", () => {
 
   test("範囲の並びは kind の順、次に地名の順", async () => {
     await insertBoard("2", "not_yet", "東区");
+    await insertBoard("箱崎第一-1", "not_yet", "東区");
+    await insertBoard("天神-1", "not_yet", "中央区");
     await setBoardArea("1", { school: "A小", town: "天神", chome: "1" });
     await setBoardArea("2", { school: "B小", town: "箱崎", chome: "2" });
     const { client } = await signInStaff("operator");
     await createAssignee(client, [
+      { kind: "district", ward: "東区", district: "箱崎第一" },
       { kind: "chome", ward: "中央区", town: "天神", chome: "1" },
       { kind: "town", ward: "東区", town: "箱崎" },
       { kind: "school", school: "B小" },
       { kind: "ward", ward: "東区" },
       { kind: "school", school: "A小" },
       { kind: "ward", ward: "中央区" },
+      { kind: "district", ward: "中央区", district: "天神" },
     ]);
     const kinds = ((await listAssignees(client))[0].ranges as Range[]).map(
-      (r) => `${r.kind}:${r.ward ?? r.school}`,
+      (r) => `${r.kind}:${r.district ?? r.ward ?? r.school}`,
     );
     expect(kinds).toEqual([
       "ward:中央区",
       "ward:東区",
+      "district:天神",
+      "district:箱崎第一",
       "school:A小",
       "school:B小",
       "town:東区",

@@ -56,11 +56,16 @@ export type Dashboard = {
 
 // ---- カバー地域 ----------------------------------------------------------
 
-export type CoverageKind = "ward" | "school" | "town" | "chome";
-/** kind ごとに使う項目だけが入り、ほかは null（ward: ward / school: school / town: ward・town / chome: ward・town・chome） */
+export type CoverageKind = "ward" | "district" | "school" | "town" | "chome";
+/**
+ * kind ごとに使う項目だけが入り、ほかは null
+ * （ward: ward / district: ward・district / school: school / town: ward・town / chome: ward・town・chome）。
+ * district は投票区（掲示場の番号の「-数字」より前。例: 馬出第一）
+ */
 export type CoverageRange = {
   kind: CoverageKind;
   ward: string | null;
+  district: string | null;
   school: string | null;
   town: string | null;
   chome: string | null;
@@ -68,27 +73,32 @@ export type CoverageRange = {
 export type CoverageStatus = "assigned" | "reserved" | "none";
 
 /**
- * ward / school / town / chome: 生成された型は null にならないと見ているが、
- * 校区・町名の表にない掲示場の行、その単位で使わない項目は null
+ * ward / district / school / town / chome: 生成された型は null にならないと見ているが、
+ * 番号から投票区が取れない掲示場の行、校区・町名の表にない掲示場の行、その単位で使わない項目は null
  * （none: 担当のつかない掲示場の数。予約・完了は reserved）
  */
 export type CoverageSummaryRow = Omit<
   Row<"admin_coverage_summary">,
-  "unit" | "ward" | "school" | "town" | "chome"
+  "unit" | "ward" | "district" | "school" | "town" | "chome"
 > & {
   unit: CoverageKind;
   ward: string | null;
+  district: string | null;
   school: string | null;
   town: string | null;
   chome: string | null;
 };
 
-/** school / school_source / town / chome: 校区・町名の表にない掲示場は null */
+/**
+ * district: 番号から投票区が取れない掲示場は null。
+ * school / school_source / town / chome: 校区・町名の表にない掲示場は null
+ */
 export type CoverageBoard = Omit<
   Row<"admin_coverage_boards">,
-  "coverage" | "school" | "school_source" | "town" | "chome"
+  "coverage" | "district" | "school" | "school_source" | "town" | "chome"
 > & {
   coverage: CoverageStatus;
+  district: string | null;
   school: string | null;
   school_source: string | null;
   town: string | null;

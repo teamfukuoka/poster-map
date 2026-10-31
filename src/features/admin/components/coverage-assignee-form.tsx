@@ -17,6 +17,7 @@ const LABEL_MESSAGE = `呼び名は1〜${LABEL_MAX}文字で入れてくださ�
 const RANGES_MESSAGE = "範囲を1つ以上選んでください。";
 const KIND_LABELS: Record<CoverageKind, string> = {
   ward: "区",
+  district: "投票区",
   school: "校区",
   town: "町名",
   chome: "丁目",
@@ -35,7 +36,7 @@ type Props = {
   onCancel?: () => void;
 };
 
-/** 担当者の登録と直し。範囲は地名の検索か、区 → 校区・町名の順で選ぶ */
+/** 担当者の登録と直し。範囲は地名の検索か、区 → 投票区・校区・町名の順で選ぶ */
 export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCancel }: Props) {
   const id = useId();
   const [label, setLabel] = useState(initial?.label ?? "");
@@ -43,6 +44,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
   const [ranges, setRanges] = useState<CoverageRange[]>(initial?.ranges ?? []);
   const [query, setQuery] = useState("");
   const [ward, setWard] = useState("");
+  const [district, setDistrict] = useState("");
   const [pick, setPick] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -51,6 +53,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
 
   const chosenKeys = new Set(ranges.map(rangeKey));
   const { places: candidates, more } = searchPlaces(places, query);
+  const wardDistricts = places.filter((p) => p.kind === "district" && p.range.ward === ward);
   const wardPlaces = places.filter(
     (p) =>
       (p.kind === "school" && p.wards.includes(ward)) ||
@@ -65,6 +68,13 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
   };
   const remove = (range: CoverageRange) => {
     setRanges((current) => current.filter((r) => rangeKey(r) !== rangeKey(range)));
+  };
+
+  const addDistrict = () => {
+    const place = wardDistricts.find((p) => p.range.district === district);
+    if (!place) return;
+    add(place.range);
+    setDistrict("");
   };
 
   const addPicked = () => {
@@ -106,6 +116,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
         setRanges([]);
         setQuery("");
         setWard("");
+        setDistrict("");
         setPick("");
       }
       onDone?.();
@@ -201,6 +212,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
               value={ward}
               onChange={(e) => {
                 setWard(e.target.value);
+                setDistrict("");
                 setPick("");
               }}
               className={SELECT_CLASS}
@@ -217,9 +229,39 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
             type="button"
             variant="outline"
             disabled={ward === ""}
-            onClick={() => add({ kind: "ward", ward, school: null, town: null, chome: null })}
+            onClick={() =>
+              add({ kind: "ward", ward, district: null, school: null, town: null, chome: null })
+            }
           >
             区ぜんぶを足す
+          </Button>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-1">
+            <Label htmlFor={`${id}-district`}>投票区</Label>
+            <select
+              id={`${id}-district`}
+              value={district}
+              disabled={ward === ""}
+              onChange={(e) => setDistrict(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              <option value="">投票区を選ぶ</option>
+              {wardDistricts.map((p) => (
+                <option key={rangeKey(p.range)} value={p.range.district ?? ""}>
+                  {p.range.district}（{p.boardCount}か所）
+                </option>
+              ))}
+            </select>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="投票区を足す"
+            disabled={district === ""}
+            onClick={addDistrict}
+          >
+            足す
           </Button>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">

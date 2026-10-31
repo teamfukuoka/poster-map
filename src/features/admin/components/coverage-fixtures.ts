@@ -9,6 +9,7 @@ import type {
 
 export const range = (r: Partial<CoverageRange> & { kind: CoverageKind }): CoverageRange => ({
   ward: null,
+  district: null,
   school: null,
   town: null,
   chome: null,
@@ -19,6 +20,7 @@ export const row = (
   r: Partial<CoverageSummaryRow> & { unit: CoverageKind },
 ): CoverageSummaryRow => ({
   ward: null,
+  district: null,
   school: null,
   town: null,
   chome: null,
@@ -35,6 +37,7 @@ export const board = (b: Partial<CoverageBoard> & { board_id: string }): Coverag
   assignee_labels: [],
   chome: "1",
   coverage: "none",
+  district: "馬出第一",
   lat: 33.6,
   long: 130.4,
   name: "",
@@ -62,10 +65,13 @@ export const assignee = (
   ...extra,
 });
 
-/** 区 2 つ・校区 2 つ・町名 3 つ・丁目 2 つの小さな集計 */
+/** 区 2 つ・投票区 3 つ・校区 2 つ・町名 3 つ・丁目 2 つの小さな集計 */
 export const SUMMARY: CoverageSummaryRow[] = [
   row({ unit: "ward", ward: "東区", total: 10, assigned: 4, reserved: 2, none: 4 }),
   row({ unit: "ward", ward: "南区", total: 5, assigned: 5, none: 0 }),
+  row({ unit: "district", ward: "東区", district: "馬出第一", total: 6, assigned: 4, none: 2 }),
+  row({ unit: "district", ward: "東区", district: "箱崎第一", total: 4, reserved: 2, none: 2 }),
+  row({ unit: "district", ward: "南区", district: "宮竹", total: 5, assigned: 5, none: 0 }),
   row({ unit: "school", ward: "東区", school: "馬出小", total: 6, assigned: 4, none: 2 }),
   row({ unit: "school", ward: "東区", school: null, total: 4, reserved: 2, none: 2 }),
   row({ unit: "school", ward: "南区", school: "宮竹小", total: 5, assigned: 5, none: 0 }),
@@ -99,6 +105,7 @@ export const BOARDS: CoverageBoard[] = [
     number: "東-003",
     address: "福岡市東区箱崎3-3",
     town: "箱崎",
+    district: "箱崎第一",
     chome: "3",
     school: null,
     coverage: "reserved",

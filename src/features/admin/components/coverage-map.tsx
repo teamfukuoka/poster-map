@@ -24,7 +24,14 @@ export default function CoverageMap({ boards, selected }: Props) {
   const shownRef = useRef<CoverageBoard[]>([]);
   // 集計は読み直しで作り直されるので、行の中身で「同じ行か」を見る
   const selectedKey = selected
-    ? JSON.stringify([selected.unit, selected.ward, selected.school, selected.town, selected.chome])
+    ? JSON.stringify([
+        selected.unit,
+        selected.ward,
+        selected.district,
+        selected.school,
+        selected.town,
+        selected.chome,
+      ])
     : null;
 
   // 地図は一度だけ作る。点が多い（2,000 件超）ので canvas で描き、クラスタにはしない

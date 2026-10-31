@@ -141,6 +141,7 @@ export type Database = {
           board_id: string
           chome: string
           coverage: string
+          district: string
           lat: number
           long: number
           name: string
@@ -158,6 +159,7 @@ export type Database = {
           assigned: number
           assignee_labels: string[]
           chome: string
+          district: string
           none: number
           reserved: number
           school: string
