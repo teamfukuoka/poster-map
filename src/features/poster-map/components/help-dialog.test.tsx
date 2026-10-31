@@ -32,6 +32,7 @@ test("参加中の人には、投票区で探す→予約→完了の流れを�
   const section = screen.getByRole("heading", { name: "ポスター貼りの流れ" }).closest("section");
   const steps = [...(section?.querySelectorAll("ol > li") ?? [])].map((li) => li.textContent);
   expect(steps[0]).toMatch(/投票区を選ぶ/);
+  expect(steps[0]).toMatch(/担当が複数あるときは、続けて選ぶと足していけます/);
   expect(steps[1]).toMatch(/「予約」/);
   expect(steps[2]).toMatch(/「完了」/);
 });

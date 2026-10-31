@@ -107,4 +107,5 @@ test("ポスター貼りの流れを、投票区で探す→予約→完了→�
   );
   expect(order.every((index) => index >= 0)).toBe(true);
   expect(order).toEqual([...order].sort((a, b) => a - b));
+  expect(steps[0]).toMatch(/担当が複数あるときは、続けて選ぶと足していけます/);
 });
