@@ -6,6 +6,7 @@ import {
   publishSiteAction,
   registerInviteCodeAction,
   removeMemberAction,
+  renameInviteCodeAction,
   resetRehearsalAction,
   revealInviteCodeAction,
   revertAcceptanceAction,
@@ -22,6 +23,7 @@ jest.mock("./admin-service", () => ({
   revealInviteCode: jest.fn(),
   registerInviteCode: jest.fn(),
   revokeInviteCode: jest.fn(),
+  renameInviteCode: jest.fn(),
   setForceHidden: jest.fn(),
   publishSite: jest.fn(),
   revertAcceptance: jest.fn(),
@@ -118,6 +120,34 @@ describe("revokeInviteCodeAction", () => {
   ])("型が違えば失敗を返す（%p, %p）", async (id, flag) => {
     await expect(call(revokeInviteCodeAction, id, flag)).resolves.toEqual(invalid);
     expect(service.revokeInviteCode).not.toHaveBeenCalled();
+  });
+});
+
+describe("renameInviteCodeAction", () => {
+  test("文字列なら service に渡し、成功したら revalidate する", async () => {
+    jest.mocked(service.renameInviteCode).mockResolvedValue({ ok: true, data: null });
+    await expect(renameInviteCodeAction("id1", "東区チーム")).resolves.toEqual({
+      ok: true,
+      data: null,
+    });
+    expect(service.renameInviteCode).toHaveBeenCalledWith(client, "id1", "東区チーム");
+    expect(revalidatePath).toHaveBeenCalledWith("/admin", "layout");
+  });
+
+  test("失敗なら revalidate しない", async () => {
+    jest.mocked(service.renameInviteCode).mockResolvedValue(failure);
+    await expect(renameInviteCodeAction("id1", "東区チーム")).resolves.toEqual(failure);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [1, "東区"],
+    ["id1", 1],
+    ["id1", null],
+    [undefined, "東区"],
+  ])("型が違えば失敗を返す（%p, %p）", async (id, label) => {
+    await expect(call(renameInviteCodeAction, id, label)).resolves.toEqual(invalid);
+    expect(service.renameInviteCode).not.toHaveBeenCalled();
   });
 });
 

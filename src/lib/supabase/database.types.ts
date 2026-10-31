@@ -242,6 +242,10 @@ export type Database = {
         Returns: string
       }
       admin_remove_member: { Args: { p_email: string }; Returns: undefined }
+      admin_rename_invite_code: {
+        Args: { p_id: string; p_label: string }
+        Returns: undefined
+      }
       admin_reset_rehearsal: { Args: { p_confirm: string }; Returns: undefined }
       admin_reveal_invite_code: { Args: { p_id: string }; Returns: string }
       admin_revert_acceptance: {

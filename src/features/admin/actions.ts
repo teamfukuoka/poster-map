@@ -62,6 +62,14 @@ export async function registerInviteCodeAction(
   return refreshOnSuccess(await service.registerInviteCode(await createClient(), label, code));
 }
 
+export async function renameInviteCodeAction(
+  id: string,
+  label: string,
+): Promise<ActionResult<null>> {
+  if (!isString(id) || !isString(label)) return invalidInput();
+  return refreshOnSuccess(await service.renameInviteCode(await createClient(), id, label));
+}
+
 export async function revokeInviteCodeAction(
   id: string,
   revokeVolunteers: boolean,

@@ -30,6 +30,7 @@ import {
   signInAnon,
   signInStaff,
   signInVolunteer,
+  type TestClient,
   withPg,
 } from "./helpers";
 
@@ -1052,6 +1053,90 @@ describe("参加コード", () => {
     expect(
       (await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: true })).error
         ?.message,
+    ).toBe("invite_code_not_found");
+  });
+});
+
+async function labelOf(client: TestClient, id: string) {
+  return (await client.rpc("admin_list_invite_codes")).data?.find((r) => r.id === id)?.label;
+}
+
+describe("admin_rename_invite_code", () => {
+  test("operator は forbidden・一覧にない人は not_admin・名前は変わらない", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "東区", p_code: CODE }))
+      .data as string;
+    for (const role of ["operator", null] as const) {
+      const { client } = await signInStaff(role);
+      expect(
+        (await client.rpc("admin_rename_invite_code", { p_id: id, p_label: "x" })).error?.message,
+      ).toBe(role ? "forbidden" : "not_admin");
+    }
+    expect(await labelOf(admin, id)).toBe("東区");
+    expect(await auditRows("rename_invite_code")).toEqual([]);
+  });
+
+  test("名前だけが変わり、同じコードで参加でき、記録に「前 → 後」が残る", async () => {
+    const { client: admin, email } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "東区", p_code: CODE }))
+      .data as string;
+    const joined = await joinWith(CODE);
+    const { error } = await admin.rpc("admin_rename_invite_code", {
+      p_id: id,
+      p_label: "  東区チーム\n",
+    });
+    expect(error).toBeNull();
+    const row = (await admin.rpc("admin_list_invite_codes")).data?.find((r) => r.id === id);
+    expect(row).toMatchObject({ id, label: "東区チーム", volunteers: 1, revoked_at: null });
+    expect((await admin.rpc("admin_reveal_invite_code", { p_id: id })).data).toBe(CODE);
+    expect((await joinWith(CODE)).result.data?.error).toBeFalsy();
+    expect(joined.result.data?.error).toBeFalsy();
+    expect(await auditRows("rename_invite_code")).toEqual([
+      { actor_email: email.toLowerCase(), target: "東区 → 東区チーム" },
+    ]);
+  });
+
+  test("失効済みも直せる・同じ名前なら記録を残さない", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    await admin.rpc("admin_revoke_invite_code", { p_id: id, p_revoke_volunteers: false });
+    expect(
+      (await admin.rpc("admin_rename_invite_code", { p_id: id, p_label: "B" })).error,
+    ).toBeNull();
+    expect(
+      (await admin.rpc("admin_rename_invite_code", { p_id: id, p_label: " B " })).error,
+    ).toBeNull();
+    expect((await auditRows("rename_invite_code")).map((r) => r.target)).toEqual(["A → B"]);
+  });
+
+  test.each([
+    ["空", "  "],
+    ["51文字", "あ".repeat(51)],
+  ])("label が %s なら invalid_label・変わらない", async (_name, label) => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    expect(
+      (await admin.rpc("admin_rename_invite_code", { p_id: id, p_label: label })).error?.message,
+    ).toBe("invalid_label");
+    expect(await labelOf(admin, id)).toBe("A");
+  });
+
+  test("50文字ちょうどは直せる・存在しない id は invite_code_not_found", async () => {
+    const { client: admin } = await signInStaff("admin");
+    const id = (await admin.rpc("admin_register_invite_code", { p_label: "A", p_code: CODE }))
+      .data as string;
+    expect(
+      (await admin.rpc("admin_rename_invite_code", { p_id: id, p_label: "あ".repeat(50) })).error,
+    ).toBeNull();
+    expect(
+      (
+        await admin.rpc("admin_rename_invite_code", {
+          p_id: crypto.randomUUID(),
+          p_label: "B",
+        })
+      ).error?.message,
     ).toBe("invite_code_not_found");
   });
 });

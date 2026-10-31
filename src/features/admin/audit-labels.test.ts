@@ -5,6 +5,7 @@ test.each([
   ["reset_rehearsal", "報告をまとめて戻す"],
   ["register_invite_code", "参加コードの登録"],
   ["revoke_invite_code", "参加コードの失効"],
+  ["rename_invite_code", "配布先の名前の変更"],
   ["reveal_invite_code", "参加コードの表示"],
   ["publish", "公開（受理後の名前に切り替え）"],
   ["revert_acceptance", "受理前に戻す"],

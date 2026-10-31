@@ -87,3 +87,10 @@ test("「くわしく」は、ヘルプの該当する節に飛び、何の説�
   expect(link).toHaveAttribute("href", "/admin/help#coverage-register");
   expect(link).toHaveTextContent("くわしく");
 });
+
+test("参加コードの配布先の名前は、管理者が後から直せると書く", () => {
+  render(<AdminHelpContent />);
+  const list = sectionOf("codes-list");
+  expect(within(list).getByText("名前を直す")).toBeInTheDocument();
+  expect(within(list).getByText(/このコードで参加した人もそのまま使えます/)).toBeInTheDocument();
+});

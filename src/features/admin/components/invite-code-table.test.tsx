@@ -1,16 +1,19 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
-import { revealInviteCodeAction, revokeInviteCodeAction } from "../actions";
+import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
+import { renameInviteCodeAction, revealInviteCodeAction, revokeInviteCodeAction } from "../actions";
 import type { InviteCodeRow } from "../types";
 import { InviteCodeTable } from "./invite-code-table";
 
 jest.mock("../actions", () => ({
   revealInviteCodeAction: jest.fn(),
   revokeInviteCodeAction: jest.fn(),
+  renameInviteCodeAction: jest.fn(),
 }));
 jest.mock("sonner", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 const mockedReveal = jest.mocked(revealInviteCodeAction);
 const mockedRevoke = jest.mocked(revokeInviteCodeAction);
+const mockedRename = jest.mocked(renameInviteCodeAction);
 
 const rows: InviteCodeRow[] = [
   {
@@ -45,6 +48,7 @@ const rows: InviteCodeRow[] = [
 beforeEach(() => {
   mockedReveal.mockReset();
   mockedRevoke.mockReset();
+  mockedRename.mockReset();
   jest.mocked(toast.success).mockReset();
 });
 
@@ -134,4 +138,60 @@ test("失効に失敗したら理由を出す", async () => {
     fireEvent.click(screen.getAllByRole("button", { name: "失効させる" }).at(-1) as HTMLElement);
   });
   expect(await screen.findByRole("alert")).toHaveTextContent("すでに失効しています");
+});
+
+test("運営には「名前を直す」を描かない", () => {
+  render(<InviteCodeTable rows={rows} isAdmin={false} />);
+  expect(screen.queryByRole("button", { name: "名前を直す" })).not.toBeInTheDocument();
+});
+
+test("管理者には失効した行も含めて「名前を直す」を出す", () => {
+  render(<InviteCodeTable rows={rows} isAdmin />);
+  expect(screen.getAllByRole("button", { name: "名前を直す" })).toHaveLength(3);
+});
+
+test("名前を直す：今の名前から始まり、保存すると action に渡して閉じる", async () => {
+  mockedRename.mockResolvedValue({ ok: true, data: null });
+  render(<InviteCodeTable rows={rows} isAdmin />);
+  fireEvent.click(screen.getAllByRole("button", { name: "名前を直す" })[2]);
+  const input = screen.getByLabelText("配布先の名前");
+  expect(input).toHaveValue("止めたコード");
+  fireEvent.change(input, { target: { value: "東区チーム（旧）" } });
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+  });
+  expect(mockedRename).toHaveBeenCalledWith("c3", "東区チーム（旧）");
+  await waitFor(() => expect(toast.success).toHaveBeenCalledWith("配布先の名前を直しました"));
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+});
+
+test("名前を直す：空なら送らずに理由を出す", async () => {
+  render(<InviteCodeTable rows={rows} isAdmin />);
+  fireEvent.click(screen.getAllByRole("button", { name: "名前を直す" })[0]);
+  fireEvent.change(screen.getByLabelText("配布先の名前"), { target: { value: "　 " } });
+  fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+  expect(await screen.findByRole("alert")).toBeInTheDocument();
+  expect(mockedRename).not.toHaveBeenCalled();
+});
+
+test("名前を直す：断られたら理由を出し、閉じない", async () => {
+  mockedRename.mockResolvedValue({ ok: false, error: "この操作は管理者だけができます。" });
+  render(<InviteCodeTable rows={rows} isAdmin />);
+  fireEvent.click(screen.getAllByRole("button", { name: "名前を直す" })[0]);
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+  });
+  expect(await screen.findByRole("alert")).toHaveTextContent("管理者だけ");
+  expect(screen.getByRole("dialog")).toBeInTheDocument();
+});
+
+test("名前を直す：reject されても、保存中のままにせず汎用の文言を出す", async () => {
+  mockedRename.mockRejectedValue(new Error("network"));
+  render(<InviteCodeTable rows={rows} isAdmin />);
+  fireEvent.click(screen.getAllByRole("button", { name: "名前を直す" })[0]);
+  await act(async () => {
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+  });
+  expect(await screen.findByRole("alert")).toHaveTextContent(FALLBACK_MESSAGE);
+  expect(screen.getByRole("button", { name: "保存する" })).toBeEnabled();
 });

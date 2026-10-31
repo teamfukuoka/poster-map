@@ -10,6 +10,7 @@ import { formatJst } from "../dashboard-view";
 import type { InviteCodeRow } from "../types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { SectionTitle } from "./help-link";
+import { InviteCodeRenameDialog } from "./invite-code-rename-dialog";
 import { InviteCodeReveal } from "./invite-code-reveal";
 
 const TH = "py-1 pr-3 font-normal";
@@ -17,10 +18,11 @@ const TD = "py-1 pr-3 align-top";
 
 /**
  * 参加コードの一覧。rows にコードの平文は含まれない（has_code だけ）。
- * 「失効させる」は isAdmin のときだけ描く。DB の RPC も管理者だけを通す。
+ * 「名前を直す」「失効させる」は isAdmin のときだけ描く。DB の RPC も管理者だけを通す。
  */
 export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAdmin: boolean }) {
   const [target, setTarget] = useState<InviteCodeRow | null>(null);
+  const [renaming, setRenaming] = useState<InviteCodeRow | null>(null);
   const [alsoVolunteers, setAlsoVolunteers] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,7 +91,15 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
                       <InviteCodeReveal id={row.id} hasCode={row.has_code} />
                     </td>
                     {isAdmin && (
-                      <td className={`${TD} whitespace-nowrap`}>
+                      <td className={`${TD} space-x-2 whitespace-nowrap`}>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setRenaming(row)}
+                        >
+                          名前を直す
+                        </Button>
                         {active && (
                           <Button
                             type="button"
@@ -109,6 +119,7 @@ export function InviteCodeTable({ rows, isAdmin }: { rows: InviteCodeRow[]; isAd
           </table>
         </div>
       )}
+      {isAdmin && <InviteCodeRenameDialog row={renaming} onClose={() => setRenaming(null)} />}
       {isAdmin && (
         <ConfirmDialog
           open={target !== null}

@@ -108,6 +108,23 @@ export async function registerInviteCode(
   return { ok: true, data: null };
 }
 
+/** 配布先の名前だけを直す（コードは変えない） */
+export async function renameInviteCode(
+  client: Client,
+  id: string,
+  label: string,
+): Promise<ActionResult<null>> {
+  const trimmedLabel = label.trim();
+  const message = validateLabel(trimmedLabel);
+  if (message) return { ok: false, error: message };
+  const { error } = await client.rpc("admin_rename_invite_code", {
+    p_id: id,
+    p_label: trimmedLabel,
+  });
+  if (error) return failure(error);
+  return { ok: true, data: null };
+}
+
 export async function revokeInviteCode(
   client: Client,
   id: string,
