@@ -83,6 +83,35 @@ export function searchDistricts<T extends Pick<MapBoard, "number" | "ward">>(
     .map(({ district, ward, count }) => ({ district, ward, count }));
 }
 
-export function isInDistrict(board: Pick<MapBoard, "number">, district: string): boolean {
-  return splitBoardNumber(board.number).district === district;
+export function districtOf(board: Pick<MapBoard, "number">): string | null {
+  return splitBoardNumber(board.number).district;
+}
+
+/** 表示を絞る投票区を URL に残すときの名前。「?districts=馬出第一,馬出第二」 */
+export const DISTRICTS_PARAM = "districts";
+
+/**
+ * URL の districts を読む。掲示板のデータにない投票区と重複は捨てる。
+ * 担当の投票区を選んだ URL をブックマークしておけば、開くだけでその範囲が出る。
+ */
+export function parseDistrictsParam(
+  search: string,
+  boards: readonly Pick<MapBoard, "number">[],
+): string[] {
+  const value = new URLSearchParams(search).get(DISTRICTS_PARAM);
+  if (!value) return [];
+  const known = new Set(boards.map(districtOf));
+  const names = value.split(",").map((name) => name.trim());
+  return [...new Set(names)].filter((name) => name !== "" && known.has(name));
+}
+
+/** 今の URL の districts だけを差し替えた URL を返す（ほかの値と # はそのまま） */
+export function withDistrictsParam(href: string, districts: readonly string[]): string {
+  const url = new URL(href);
+  if (districts.length > 0) {
+    url.searchParams.set(DISTRICTS_PARAM, districts.join(","));
+  } else {
+    url.searchParams.delete(DISTRICTS_PARAM);
+  }
+  return `${url.pathname}${url.search}${url.hash}`;
 }

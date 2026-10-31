@@ -1,11 +1,13 @@
 import {
   DISTRICT_MAX_RESULTS,
-  isInDistrict,
+  districtOf,
   normalizeForSearch,
+  parseDistrictsParam,
   SEARCH_MAX_RESULTS,
   searchBoards,
   searchDistricts,
   splitBoardNumber,
+  withDistrictsParam,
 } from "./search";
 
 const boards = [
@@ -98,7 +100,46 @@ describe("searchDistricts", () => {
   });
 });
 
-test("isInDistrict", () => {
-  expect(isInDistrict({ number: "馬出第一-3" }, "馬出第一")).toBe(true);
-  expect(isInDistrict({ number: "東馬出-1" }, "馬出")).toBe(false);
+test("districtOf", () => {
+  expect(districtOf({ number: "馬出第一-3" })).toBe("馬出第一");
+  expect(districtOf({ number: "東馬出-1" })).toBe("東馬出");
+  expect(districtOf({ number: "番号なし" })).toBeNull();
+});
+
+describe("parseDistrictsParam", () => {
+  const known = [{ number: "馬出第一-1" }, { number: "馬出第一-2" }, { number: "箱崎第一-1" }];
+
+  test("カンマ区切りで読み、空白と重複を除く", () => {
+    expect(
+      parseDistrictsParam(
+        "?districts=%E9%A6%AC%E5%87%BA%E7%AC%AC%E4%B8%80, 箱崎第一,馬出第一",
+        known,
+      ),
+    ).toEqual(["馬出第一", "箱崎第一"]);
+  });
+
+  test("データにない投票区と空の値は捨てる", () => {
+    expect(parseDistrictsParam("?districts=馬出第一,,存在しない", known)).toEqual(["馬出第一"]);
+    expect(parseDistrictsParam("?districts=", known)).toEqual([]);
+    expect(parseDistrictsParam("", known)).toEqual([]);
+  });
+});
+
+describe("withDistrictsParam", () => {
+  test("districts だけを差し替え、ほかの値と # は残す", () => {
+    const href = withDistrictsParam("https://example.invalid/?a=1#x", ["馬出第一", "箱崎第一"]);
+    expect(href.startsWith("/?a=1&districts=")).toBe(true);
+    expect(href.endsWith("#x")).toBe(true);
+    expect(
+      parseDistrictsParam(href.slice(1, href.indexOf("#")), [
+        { number: "馬出第一-1" },
+        { number: "箱崎第一-1" },
+      ]),
+    ).toEqual(["馬出第一", "箱崎第一"]);
+  });
+
+  test("空にしたら districts を消す", () => {
+    expect(withDistrictsParam("https://example.invalid/?districts=x&a=1", [])).toBe("/?a=1");
+    expect(withDistrictsParam("https://example.invalid/?districts=x", [])).toBe("/");
+  });
 });

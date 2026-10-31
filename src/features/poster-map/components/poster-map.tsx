@@ -17,7 +17,7 @@ import {
   markerIconHtml,
   offsetPosition,
 } from "../marker-icons";
-import { type DistrictHit, isInDistrict } from "../search";
+import { type DistrictHit, districtOf, parseDistrictsParam, withDistrictsParam } from "../search";
 import { countByStatus } from "../stats";
 import type { MapBoard } from "../types";
 import { BoardSearch } from "./board-search";
@@ -41,6 +41,20 @@ function childBoards(cluster: L.MarkerCluster): MapBoard[] {
     m.board ? [m.board] : [],
   );
 }
+
+/** 投票区の掲示板が全部入る範囲。1 か所もなければ null */
+function districtBounds(
+  boards: readonly MapBoard[],
+  districts: readonly string[],
+): L.LatLngBounds | null {
+  const names = new Set(districts);
+  const points = boards
+    .filter((b) => names.has(districtOf(b) ?? ""))
+    .map((b): [number, number] => [b.lat, b.long]);
+  return points.length > 0 ? L.latLngBounds(points) : null;
+}
+
+const DISTRICT_FIT = { padding: [40, 40] as [number, number], maxZoom: 17 };
 
 function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const { html, size } = clusterIconHtml(countByStatus(childBoards(cluster)));
@@ -69,21 +83,35 @@ export default function PosterMap({
   const isVolunteerRef = useRef(isVolunteer);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
-  /** 検索で選んだ投票区。選んでいる間は、その投票区のピンだけを出す */
-  const [district, setDistrict] = useState<string | null>(null);
-
-  const shownBoards = useMemo(
-    () => (district ? boards.filter((b) => isInDistrict(b, district)) : boards),
-    [boards, district],
+  /** 検索で選んだ投票区（選んだ順）。選んでいる間は、その投票区のピンだけを出す。URL から始める */
+  const [districts, setDistricts] = useState<string[]>(() =>
+    parseDistrictsParam(window.location.search, allBoards),
   );
+
+  const shownBoards = useMemo(() => {
+    if (districts.length === 0) return boards;
+    const names = new Set(districts);
+    return boards.filter((b) => names.has(districtOf(b) ?? ""));
+  }, [boards, districts]);
+
+  // 選んだ投票区を URL に残す。ブックマークやホーム画面から開くと、同じ範囲が出る
+  useEffect(() => {
+    const next = withDistrictsParam(window.location.href, districts);
+    const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (next !== current) window.history.replaceState(window.history.state, "", next);
+  }, [districts]);
 
   useEffect(() => {
     isVolunteerRef.current = isVolunteer;
   }, [isVolunteer]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 地図は一度だけ作る。範囲は開いたときの値で決める
   useEffect(() => {
     if (!containerRef.current) return;
     const map = L.map(containerRef.current).setView(MAP_CENTER, DEFAULT_ZOOM);
+    // URL で投票区を指定して開いたときは、その範囲から始める
+    const initialBounds = districtBounds(allBoards, districts);
+    if (initialBounds) map.fitBounds(initialBounds, DISTRICT_FIT);
     L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
       attribution:
         '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">地理院タイル</a>',
@@ -206,23 +234,25 @@ export default function PosterMap({
     const map = mapRef.current;
     if (!map) return;
     lastSearchedRef.current = board;
-    // 絞っている投票区の外を選んだら、ピンが見えるように絞り込みをやめる
-    if (district && !isInDistrict(board, district)) setDistrict(null);
+    // 絞っている投票区の外を選んだら、ピンが見えるようにその投票区を足す（足せなければ絞り込みをやめる）
+    const boardDistrict = districtOf(board);
+    if (districts.length > 0 && !districts.includes(boardDistrict ?? "")) {
+      setDistricts(boardDistrict ? [...districts, boardDistrict] : []);
+    }
     flyToBoard(map, board, MAX_ZOOM, (b) => lastSearchedRef.current === b, onBoardClick);
   };
 
-  // 投票区を選んだら、その投票区の掲示板が全部入るように寄る
+  // 投票区を選んだら表示に足し、選んだ投票区が全部入るように寄る。
+  // もう表示中の投票区なら、足さずにその投票区へ寄る
   const handleDistrictSelect = (hit: DistrictHit) => {
     const map = mapRef.current;
     if (!map) return;
     lastSearchedRef.current = null;
-    setDistrict(hit.district);
-    const points = allBoards
-      .filter((b) => isInDistrict(b, hit.district))
-      .map((b): [number, number] => [b.lat, b.long]);
-    if (points.length > 0) {
-      map.flyToBounds(L.latLngBounds(points), { padding: [40, 40], maxZoom: 17, duration: 1 });
-    }
+    const shown = districts.includes(hit.district);
+    const next = shown ? districts : [...districts, hit.district];
+    if (!shown) setDistricts(next);
+    const bounds = districtBounds(allBoards, shown ? [hit.district] : next);
+    if (bounds) map.flyToBounds(bounds, { ...DISTRICT_FIT, duration: 1 });
   };
 
   useEffect(() => {
@@ -252,8 +282,9 @@ export default function PosterMap({
       boards={allBoards}
       onSelect={handleSearchSelect}
       onSelectDistrict={handleDistrictSelect}
-      district={district}
-      onClearDistrict={() => setDistrict(null)}
+      districts={districts}
+      onRemoveDistrict={(name) => setDistricts((prev) => prev.filter((d) => d !== name))}
+      onClearDistricts={() => setDistricts([])}
       compact={isFullscreen}
     />
   );

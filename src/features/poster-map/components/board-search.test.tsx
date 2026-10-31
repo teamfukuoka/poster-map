@@ -40,9 +40,10 @@ function renderSearch(props: Partial<ComponentProps<typeof BoardSearch>> = {}) {
   const handlers = {
     onSelect: jest.fn(),
     onSelectDistrict: jest.fn(),
-    onClearDistrict: jest.fn(),
+    onRemoveDistrict: jest.fn(),
+    onClearDistricts: jest.fn(),
   };
-  render(<BoardSearch boards={boards} district={null} {...handlers} {...props} />);
+  render(<BoardSearch boards={boards} districts={[]} {...handlers} {...props} />);
   return handlers;
 }
 
@@ -85,14 +86,35 @@ test("投票区の名前を入れると、いちばん上に投票区の候補�
   expect(screen.getByRole("searchbox", { name: "掲示板を探す" })).toHaveValue("");
 });
 
-test("投票区で絞っている間は「〜だけ表示中」を出し、押すと onClearDistrict を呼ぶ", () => {
-  const { onClearDistrict } = renderSearch({ district: "天神" });
-  const chip = screen.getByRole("button", {
-    name: "天神だけの表示をやめて、全部の掲示板を表示する",
-  });
-  expect(chip).toHaveTextContent("天神だけ表示中");
-  fireEvent.click(chip);
-  expect(onClearDistrict).toHaveBeenCalled();
+test("表示中の投票区は候補に「表示中」と出す", () => {
+  renderSearch({ districts: ["天神"] });
+  type("天神");
+  expect(screen.getAllByRole("button")[1]).toHaveTextContent("天神（投票区・2か所・表示中）");
+});
+
+test("投票区で絞っている間は選んだ投票区をチップで並べ、× で 1 つずつ外せる", () => {
+  const { onRemoveDistrict } = renderSearch({ districts: ["天神", "博多"] });
+  const group = screen.getByRole("group", { name: "表示中の投票区" });
+  expect(group).toHaveTextContent("この投票区だけ表示中：天神博多全部表示に戻す");
+  fireEvent.click(screen.getByRole("button", { name: "博多を表示から外す" }));
+  expect(onRemoveDistrict).toHaveBeenCalledWith("博多");
+});
+
+test("2つ以上選んでいるときは「全部表示に戻す」で全部に戻せる", () => {
+  const { onClearDistricts } = renderSearch({ districts: ["天神", "博多"] });
+  fireEvent.click(screen.getByRole("button", { name: "全部表示に戻す" }));
+  expect(onClearDistricts).toHaveBeenCalled();
+});
+
+test("1つだけなら「全部表示に戻す」は出さず、× で戻す", () => {
+  renderSearch({ districts: ["天神"] });
+  expect(screen.getByRole("button", { name: "天神を表示から外す" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "全部表示に戻す" })).not.toBeInTheDocument();
+});
+
+test("絞っていないときはチップを出さない", () => {
+  renderSearch();
+  expect(screen.queryByRole("group", { name: "表示中の投票区" })).not.toBeInTheDocument();
 });
 
 test("1文字では候補を出さない", () => {
