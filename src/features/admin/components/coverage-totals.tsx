@@ -11,7 +11,7 @@ function Tile({ name, value, alert }: { name: string; value: string; alert?: boo
   );
 }
 
-/** 全体の数。担当なしは赤。リハーサルの期間と、校区・町名の表が古いときの注意も出す */
+/** 全体の数。担当なしは赤。リハーサルの期間と、町名の表が古いときの注意も出す */
 export function CoverageTotals({
   summary,
   boards,
@@ -41,8 +41,7 @@ export function CoverageTotals({
       )}
       {missing > 0 && (
         <p role="alert" className="text-destructive text-sm">
-          校区・町名が入っていない掲示場が {missing}{" "}
-          か所あります。掲示場の取り込みをやり直してください。
+          町名が入っていない掲示場が {missing} か所あります。掲示場の取り込みをやり直してください。
         </p>
       )}
     </section>

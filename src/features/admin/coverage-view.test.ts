@@ -110,17 +110,8 @@ describe("buildPlaces と searchPlaces", () => {
     row({ unit: "chome", ward: "東区", town: "馬出", chome: "1", total: 4 }),
   ];
 
-  test("校区は区をまたいで 1 つにまとめる", () => {
-    const miyatake = buildPlaces(summary).filter((p) => p.kind === "school");
-    expect(miyatake).toEqual([
-      {
-        kind: "school",
-        range: range({ kind: "school", school: "宮竹小" }),
-        label: "宮竹小（校区）",
-        wards: ["博多区", "南区"],
-        boardCount: 5,
-      },
-    ]);
+  test("校区は今回は使わないので、選べる場所に出さない", () => {
+    expect(buildPlaces(summary).filter((p) => p.kind === "school")).toEqual([]);
   });
 
   test("投票区は区ごとに別の場所", () => {
@@ -130,14 +121,12 @@ describe("buildPlaces と searchPlaces", () => {
         kind: "district",
         range: range({ kind: "district", ward: "東区", district: "馬出第一" }),
         label: "東区 馬出第一（投票区）",
-        wards: ["東区"],
         boardCount: 6,
       },
       {
         kind: "district",
         range: range({ kind: "district", ward: "博多区", district: "馬出第一" }),
         label: "博多区 馬出第一（投票区）",
-        wards: ["博多区"],
         boardCount: 2,
       },
     ]);
@@ -176,7 +165,7 @@ describe("buildPlaces と searchPlaces", () => {
     const places = buildPlaces(summary);
     const result = searchPlaces(places, "区", 2);
     expect(result.places).toHaveLength(2);
-    expect(result.more).toBe(5);
+    expect(result.more).toBe(4);
     expect(searchPlaces(places, "区", 20).more).toBe(0);
   });
 });

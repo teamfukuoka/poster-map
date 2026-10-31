@@ -34,7 +34,7 @@ export function coverageTooltipHtml(b: CoverageBoard): string {
   const lines = [
     `<strong>${escapeHtml(b.name ? `${b.number} ${b.name}` : b.number)}</strong>`,
     escapeHtml(b.address),
-    `校区: ${escapeHtml(b.school ?? "不明")}`,
+    `投票区: ${escapeHtml(b.district ?? "不明")}`,
     `町名: ${escapeHtml(town || "不明")}`,
     `担当: ${escapeHtml(assignees)}`,
   ];

@@ -43,13 +43,14 @@ test("列は 掲示場・担当あり・予約あり・担当なし・カバー�
   expect(cells.slice(1, 6)).toEqual(["10", "4", "2", "4", "6（60%）"]);
 });
 
-test("単位を切り替えると行が変わる", () => {
+test("単位を切り替えると行が変わる。校区は今回は使わないので単位に出さない", () => {
   render(<Harness />);
-  fireEvent.click(screen.getByRole("button", { name: "校区" }));
-  expect(screen.getByText("宮竹小")).toBeInTheDocument();
-  expect(screen.getByText("馬出小")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "校区" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "投票区" }));
+  expect(screen.getByText("箱崎第一")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "町名" }));
   expect(screen.getByText("箱崎")).toBeInTheDocument();
+  expect(screen.queryByText("箱崎第一")).not.toBeInTheDocument();
   expect(screen.queryByText("宮竹小")).not.toBeInTheDocument();
 });
 
@@ -67,12 +68,6 @@ test("投票区の行を押すと、その投票区の掲示場が出る", () =>
   fireEvent.click(within(rowOf("箱崎第一")).getByRole("button"));
   expect(screen.getByText("東-003")).toBeInTheDocument();
   expect(screen.queryByText("東-001")).not.toBeInTheDocument();
-});
-
-test("校区が null の行は「校区なし」と出る", () => {
-  render(<Harness />);
-  fireEvent.click(screen.getByRole("button", { name: "校区" }));
-  expect(screen.getByText("校区なし")).toBeInTheDocument();
 });
 
 test("区で絞れる", () => {
@@ -140,7 +135,7 @@ test("単位を切り替えると選びが外れる", () => {
   render(<Harness />);
   fireEvent.click(screen.getByRole("button", { name: "東区" }));
   expect(screen.getByRole("region", { name: "東区の掲示場" })).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "校区" }));
+  fireEvent.click(screen.getByRole("button", { name: "投票区" }));
   expect(screen.queryByRole("region", { name: /の掲示場/ })).not.toBeInTheDocument();
 });
 

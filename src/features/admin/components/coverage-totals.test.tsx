@@ -32,7 +32,7 @@ test("10/31 まではリハーサルの注記を出し、11/1 からは出さな
   expect(screen.queryByText(/リハーサルの報告です/)).not.toBeInTheDocument();
 });
 
-test("校区・町名が入っていない掲示場があれば、取り込みのやり直しを促す", () => {
+test("町名が入っていない掲示場があれば、取り込みのやり直しを促す", () => {
   const boards = [
     board({ board_id: "x1", school_source: null }),
     board({ board_id: "x2", school_source: null }),
@@ -41,7 +41,7 @@ test("校区・町名が入っていない掲示場があれば、取り込み�
   ];
   render(<CoverageTotals summary={SUMMARY} boards={boards} now={AFTER} />);
   expect(screen.getByRole("alert")).toHaveTextContent(
-    "校区・町名が入っていない掲示場が 3 か所あります。掲示場の取り込みをやり直してください。",
+    "町名が入っていない掲示場が 3 か所あります。掲示場の取り込みをやり直してください。",
   );
 });
 

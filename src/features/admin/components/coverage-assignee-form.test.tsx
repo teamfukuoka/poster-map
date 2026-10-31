@@ -64,7 +64,8 @@ test("「馬出」と打つと候補に種類と掲示場の数が出る", () =>
   type("地名で探す", "馬出");
   const town = screen.getByRole("button", { name: /^東区 馬出 町名/ });
   expect(town).toHaveTextContent("6か所");
-  expect(screen.getByRole("button", { name: /^馬出小（校区） 校区/ })).toBeInTheDocument();
+  // 校区は今回は使わないので候補に出さない
+  expect(screen.queryByRole("button", { name: /校区/ })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: /^東区 馬出 1丁目 丁目/ })).toBeInTheDocument();
 });
 
@@ -109,11 +110,15 @@ test("候補を押すと「選んだ範囲」に足され、× で外せる。�
   expect(screen.queryByRole("list", { name: "選んだ範囲" })).not.toBeInTheDocument();
 });
 
-test("区 → 校区・町名 と順に選んでも足せる", () => {
+test("区 → 町名 と順に選んでも足せる。町名の選択肢はその区の町名だけ", () => {
   renderForm();
   fireEvent.change(screen.getByLabelText("区"), { target: { value: "東区" } });
-  fireEvent.change(screen.getByLabelText("校区・町名"), { target: { value: "town:箱崎" } });
-  fireEvent.click(screen.getByRole("button", { name: "足す" }));
+  const options = within(screen.getByLabelText("町名"))
+    .getAllByRole("option")
+    .map((o) => o.textContent);
+  expect(options.every((o) => !o?.includes("校区"))).toBe(true);
+  fireEvent.change(screen.getByLabelText("町名"), { target: { value: "箱崎" } });
+  fireEvent.click(screen.getByRole("button", { name: "町名を足す" }));
   const chosen = screen.getByRole("list", { name: "選んだ範囲" });
   expect(within(chosen).getByText("東区 箱崎")).toBeInTheDocument();
   // 区ぜんぶも足せる

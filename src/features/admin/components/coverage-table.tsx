@@ -12,7 +12,6 @@ const NOWRAP = "whitespace-nowrap";
 const UNITS: { unit: CoverageKind; label: string }[] = [
   { unit: "ward", label: "区" },
   { unit: "district", label: "投票区" },
-  { unit: "school", label: "校区" },
   { unit: "town", label: "町名" },
 ];
 
@@ -65,7 +64,7 @@ type Props = {
   onSelect: (row: CoverageSummaryRow | null) => void;
 };
 
-/** 区・投票区・校区・町名ごとの一覧。行を押すと、その範囲の掲示場を下に出す */
+/** 区・投票区・町名ごとの一覧（校区は今回は使わないので単位に出さない）。行を押すと、その範囲の掲示場を下に出す */
 export function CoverageTable({ summary, boards, selected, onSelect }: Props) {
   const [unit, setUnit] = useState<CoverageKind>("ward");
   const [ward, setWard] = useState<string | null>(null);

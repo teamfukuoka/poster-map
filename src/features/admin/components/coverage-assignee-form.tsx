@@ -36,7 +36,7 @@ type Props = {
   onCancel?: () => void;
 };
 
-/** 担当者の登録と直し。範囲は地名の検索か、区 → 投票区・校区・町名の順で選ぶ */
+/** 担当者の登録と直し。範囲は地名の検索か、区 → 投票区・町名の順で選ぶ */
 export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCancel }: Props) {
   const id = useId();
   const [label, setLabel] = useState(initial?.label ?? "");
@@ -54,11 +54,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
   const chosenKeys = new Set(ranges.map(rangeKey));
   const { places: candidates, more } = searchPlaces(places, query);
   const wardDistricts = places.filter((p) => p.kind === "district" && p.range.ward === ward);
-  const wardPlaces = places.filter(
-    (p) =>
-      (p.kind === "school" && p.wards.includes(ward)) ||
-      (p.kind === "town" && p.range.ward === ward),
-  );
+  const wardTowns = places.filter((p) => p.kind === "town" && p.range.ward === ward);
   const sameLabel = hasSameLabel(assignees, label, initial?.id);
 
   const add = (range: CoverageRange) => {
@@ -78,7 +74,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
   };
 
   const addPicked = () => {
-    const place = wardPlaces.find((p) => `${p.kind}:${p.range.school ?? p.range.town}` === pick);
+    const place = wardTowns.find((p) => p.range.town === pick);
     if (!place) return;
     add(place.range);
     setPick("");
@@ -266,7 +262,7 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <div className="flex-1 space-y-1">
-            <Label htmlFor={`${id}-pick`}>校区・町名</Label>
+            <Label htmlFor={`${id}-pick`}>町名</Label>
             <select
               id={`${id}-pick`}
               value={pick}
@@ -274,18 +270,21 @@ export function CoverageAssigneeForm({ places, assignees, initial, onDone, onCan
               onChange={(e) => setPick(e.target.value)}
               className={SELECT_CLASS}
             >
-              <option value="">校区・町名を選ぶ</option>
-              {wardPlaces.map((p) => {
-                const name = p.range.school ?? p.range.town ?? "";
-                return (
-                  <option key={rangeKey(p.range)} value={`${p.kind}:${name}`}>
-                    {name}（{KIND_LABELS[p.kind]}・{p.boardCount}か所）
-                  </option>
-                );
-              })}
+              <option value="">町名を選ぶ</option>
+              {wardTowns.map((p) => (
+                <option key={rangeKey(p.range)} value={p.range.town ?? ""}>
+                  {p.range.town}（{p.boardCount}か所）
+                </option>
+              ))}
             </select>
           </div>
-          <Button type="button" variant="outline" disabled={pick === ""} onClick={addPicked}>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="町名を足す"
+            disabled={pick === ""}
+            onClick={addPicked}
+          >
             足す
           </Button>
         </div>

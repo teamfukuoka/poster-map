@@ -29,7 +29,6 @@ export type Place = {
   kind: CoverageKind;
   range: CoverageRange;
   label: string;
-  wards: string[];
   boardCount: number;
 };
 
@@ -94,38 +93,14 @@ export function rangeKey(r: CoverageRange): string {
   return JSON.stringify([r.kind, r.ward, r.district, r.school, r.town, r.chome]);
 }
 
-/** 選べる場所の一覧。校区は区をまたいで 1 つにまとめる（school が null の行は除く） */
+/**
+ * 選べる場所の一覧（区・投票区・町名・丁目）。校区は今回は使わないので出さない
+ * （DB と集計には残している）。地名が null の行は除く
+ */
 export function buildPlaces(summary: CoverageSummaryRow[]): Place[] {
   const places: Place[] = [];
-  const schools = new Map<string, Place>();
   for (const r of summary) {
-    if (r.unit === "school") {
-      if (r.school === null) continue;
-      const existing = schools.get(r.school);
-      if (existing) {
-        existing.boardCount += r.total;
-        if (r.ward !== null && !existing.wards.includes(r.ward)) existing.wards.push(r.ward);
-        continue;
-      }
-      const range: CoverageRange = {
-        kind: "school",
-        ward: null,
-        district: null,
-        school: r.school,
-        town: null,
-        chome: null,
-      };
-      const place: Place = {
-        kind: "school",
-        range,
-        label: rangeLabel(range),
-        wards: r.ward === null ? [] : [r.ward],
-        boardCount: r.total,
-      };
-      schools.set(r.school, place);
-      places.push(place);
-      continue;
-    }
+    if (r.unit === "school") continue;
     let range: CoverageRange;
     const empty = { district: null, school: null, town: null, chome: null };
     if (r.unit === "ward") {
@@ -145,11 +120,9 @@ export function buildPlaces(summary: CoverageSummaryRow[]): Place[] {
       kind: r.unit,
       range,
       label: rangeLabel(range),
-      wards: [r.ward as string],
       boardCount: r.total,
     });
   }
-  for (const p of schools.values()) p.wards.sort((a, b) => wardOrder(a) - wardOrder(b));
   return places;
 }
 

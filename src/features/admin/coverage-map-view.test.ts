@@ -24,7 +24,7 @@ describe("coverageTooltipHtml", () => {
         board_id: "b1",
         name: "<b>x</b>",
         address: "<i>住所</i>",
-        school: "<u>校区</u>",
+        district: "<u>投票区</u>",
         town: "<s>町</s>",
         assignee_labels: ["<script>"],
       }),
@@ -37,11 +37,12 @@ describe("coverageTooltipHtml", () => {
     expect(html).toContain("&lt;script&gt;");
   });
 
-  it("番号・住所・校区・町名（丁目）・担当者を出す。担当者がいなければ「担当なし」", () => {
+  it("番号・住所・投票区・町名（丁目）・担当者を出す（校区は今回は使わないので出さない）。担当者がいなければ「担当なし」", () => {
     const html = coverageTooltipHtml(board({ board_id: "b1", assignee_labels: ["A班", "B班"] }));
     expect(html).toContain("東-001");
     expect(html).toContain("福岡市東区馬出1-1");
-    expect(html).toContain("馬出小");
+    expect(html).toContain("投票区: 馬出第一");
+    expect(html).not.toContain("校区");
     expect(html).toContain("馬出 1丁目");
     expect(html).toContain("A班、B班");
     expect(coverageTooltipHtml(board({ board_id: "b2", assignee_labels: [] }))).toContain(
@@ -54,11 +55,11 @@ describe("coverageTooltipHtml", () => {
     expect(html).toContain("町名: 馬出 3丁目");
   });
 
-  it("校区・町名の表にない掲示場は空欄でなく「不明」", () => {
+  it("投票区が取れない・町名の表にない掲示場は空欄でなく「不明」", () => {
     const html = coverageTooltipHtml(
-      board({ board_id: "b3", school: null, town: null, chome: null }),
+      board({ board_id: "b3", district: null, school: null, town: null, chome: null }),
     );
-    expect(html).toContain("校区: 不明");
+    expect(html).toContain("投票区: 不明");
     expect(html).toContain("町名: 不明");
   });
 });
