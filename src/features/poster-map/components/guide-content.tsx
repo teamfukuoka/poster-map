@@ -84,6 +84,7 @@ const SECTIONS = [
   ["prepare", "用意するもの"],
   ["open", "地図を開く"],
   ["join", "参加する（最初の 1 回だけ）"],
+  ["flow", "ポスター貼りの流れ"],
   ["read", "地図の見方"],
   ["search", "掲示場を探す"],
   ["pin", "ピンを押すと"],
@@ -197,6 +198,41 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           </li>
           <li>ブラウザの履歴や Cookie を消したときも、もう一度参加すれば元どおり使えます。</li>
         </ul>
+      </Section>
+
+      <Section id="flow">
+        <p>ふだんは、この順に使います。くわしくは、それぞれの項目を見てください。</p>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>
+            地図の上の「掲示板を探す」に担当の投票区を入れて選ぶ（例：馬出第一）。その投票区の掲示場だけが表示されます。選んだ状態でブックマークやホーム画面に追加しておくと、次からは開くだけで同じ表示になります（
+            <a href="#search" className="underline">
+              掲示場を探す
+            </a>
+            ）。
+          </li>
+          <li>
+            「フィルター」で「{STATUS_CONFIG.not_yet.label}
+            」だけにすると、まだ誰も向かっていない掲示場が分かります。
+          </li>
+          <li>
+            向かう掲示場のピンを押して「{STATUS_CONFIG.reserved.label}
+            」で報告する。ほかの人の地図で黄色になり、同じ場所に二人で向かうのを防げます。
+          </li>
+          <li>ピンの「Google マップ」「Apple マップ」で道案内を始めて、掲示場へ向かう。</li>
+          <li>
+            貼り終えたら、同じピンを押して「{STATUS_CONFIG.done.label}
+            」で報告する。地図の色が変わります。その場ですぐ貼れるときは、予約しないで「
+            {STATUS_CONFIG.done.label}」だけでかまいません。
+          </li>
+          <li>
+            予約したけれど回りきれなかった掲示場は、その日のうちに「{STATUS_CONFIG.not_yet.label}
+            」に戻す。ほかの人が向かえるようになります（
+            <a href="#report" className="underline">
+              報告する
+            </a>
+            ）。
+          </li>
+        </ol>
       </Section>
 
       <Section id="read">

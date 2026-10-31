@@ -96,3 +96,15 @@ test("参加中の人には、他候補のポスターがあるときの報告�
   render(<GuideContent isVolunteer />);
   expect(screen.getByText(/貼る区画にほかのポスターがある/)).toBeInTheDocument();
 });
+
+test("ポスター貼りの流れを、投票区で探す→予約→完了→行けなければ未貼付に戻す、の順で書く", () => {
+  render(<GuideContent isVolunteer={false} />);
+  const steps = within(sectionOf("ポスター貼りの流れ"))
+    .getAllByRole("listitem")
+    .map((item) => item.textContent ?? "");
+  const order = ["投票区", "「予約」", "「完了」", "「未貼付」に戻す"].map((word) =>
+    steps.findIndex((step) => step.includes(word)),
+  );
+  expect(order.every((index) => index >= 0)).toBe(true);
+  expect(order).toEqual([...order].sort((a, b) => a - b));
+});

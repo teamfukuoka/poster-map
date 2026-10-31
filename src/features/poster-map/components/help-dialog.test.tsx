@@ -26,3 +26,12 @@ test("色の意味は、参加中の人には「他候補」と出す", () => {
   render(<HelpDialog open onOpenChange={jest.fn()} isVolunteer />);
   expect(screen.getByText("他候補")).toBeInTheDocument();
 });
+
+test("参加中の人には、投票区で探す→予約→完了の流れを順に出す", () => {
+  render(<HelpDialog open onOpenChange={jest.fn()} isVolunteer />);
+  const section = screen.getByRole("heading", { name: "ポスター貼りの流れ" }).closest("section");
+  const steps = [...(section?.querySelectorAll("ol > li") ?? [])].map((li) => li.textContent);
+  expect(steps[0]).toMatch(/投票区を選ぶ/);
+  expect(steps[1]).toMatch(/「予約」/);
+  expect(steps[2]).toMatch(/「完了」/);
+});
