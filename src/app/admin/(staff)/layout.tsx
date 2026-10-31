@@ -9,7 +9,12 @@ import { HELP_PATH } from "@/features/admin/help-sections";
 import { ROLE_LABELS } from "@/features/admin/role-labels";
 import { getStaffSession } from "@/features/admin/staff-session";
 
-export const metadata: Metadata = { robots: { index: false, follow: false } };
+// シェアしたときのカードは公開の画面だけ（layout の openGraph・twitter を外す）
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+  openGraph: null,
+  twitter: null,
+};
 
 // /admin/login はこの (staff) の外にあるので、ここからの redirect は繰り返さない。
 // 子ページは遷移のたびに描き直されないことがあるため、守りの本体は DB（RPC が役割を確かめる）。

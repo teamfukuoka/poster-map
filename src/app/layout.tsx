@@ -9,11 +9,16 @@ import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const siteName = await getSiteName();
-  // 検索エンジンには載せない（URL を知っている人に向けた道具）
+  const description =
+    "福岡市内のポスター掲示板の場所と、貼り終えたかどうかを地図で確かめられます。";
+  // 検索エンジンには載せない（URL を知っている人に向けた道具）。
+  // シェアしたときのカードは出す（画像は opengraph-image.tsx。管理画面は (staff) と login で外す）
   return {
     title: siteName,
-    description: "福岡市内のポスター掲示板の場所と、貼り終えたかどうかを地図で確かめられます。",
+    description,
     robots: { index: false, follow: false },
+    openGraph: { type: "website", locale: "ja_JP", siteName, title: siteName, description },
+    twitter: { card: "summary_large_image", title: siteName, description },
   };
 }
 
