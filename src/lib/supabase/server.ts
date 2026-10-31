@@ -2,14 +2,15 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { STAFF_AUTH_COOKIE } from "./cookie-names";
 import type { Database } from "./database.types";
 import { supabaseEnv } from "./env";
 
-/** Cookie のセッションを使うクライアント（Server Component / Server Action 用） */
-export async function createClient() {
+async function createCookieClient(cookieName?: string) {
   const cookieStore = await cookies();
   const { url, anonKey } = supabaseEnv();
   return createServerClient<Database>(url, anonKey, {
+    ...(cookieName ? { cookieOptions: { name: cookieName } } : {}),
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -25,4 +26,14 @@ export async function createClient() {
       },
     },
   });
+}
+
+/** ボランティア・一般の人のセッション（既定の Cookie）。Server Component / Server Action 用 */
+export function createClient() {
+  return createCookieClient();
+}
+
+/** 管理画面のセッション（STAFF_AUTH_COOKIE）。ボランティアの参加とは別に持つ */
+export function createStaffClient() {
+  return createCookieClient(STAFF_AUTH_COOKIE);
 }

@@ -6,7 +6,7 @@ import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
 import type { ActionResult } from "@/features/poster-map/types";
 import { PUBLIC_WINDOW_TAG } from "@/lib/public-window";
 import { SITE_NAME_TAG } from "@/lib/site-name";
-import { createClient } from "@/lib/supabase/server";
+import { createStaffClient } from "@/lib/supabase/server";
 import * as service from "./admin-service";
 import { parseRanges } from "./coverage-view";
 import type { AdminRole, CoverageRange, RevealedInviteCode } from "./types";
@@ -51,7 +51,7 @@ export async function revealInviteCodeAction(
   id: string,
 ): Promise<ActionResult<RevealedInviteCode>> {
   if (!isString(id)) return invalidInput();
-  return service.revealInviteCode(await createClient(), id);
+  return service.revealInviteCode(await createStaffClient(), id);
 }
 
 export async function registerInviteCodeAction(
@@ -59,7 +59,7 @@ export async function registerInviteCodeAction(
   code: string,
 ): Promise<ActionResult<null>> {
   if (!isString(label) || !isString(code)) return invalidInput();
-  return refreshOnSuccess(await service.registerInviteCode(await createClient(), label, code));
+  return refreshOnSuccess(await service.registerInviteCode(await createStaffClient(), label, code));
 }
 
 export async function renameInviteCodeAction(
@@ -67,7 +67,7 @@ export async function renameInviteCodeAction(
   label: string,
 ): Promise<ActionResult<null>> {
   if (!isString(id) || !isString(label)) return invalidInput();
-  return refreshOnSuccess(await service.renameInviteCode(await createClient(), id, label));
+  return refreshOnSuccess(await service.renameInviteCode(await createStaffClient(), id, label));
 }
 
 export async function revokeInviteCodeAction(
@@ -76,28 +76,28 @@ export async function revokeInviteCodeAction(
 ): Promise<ActionResult<{ revokedVolunteers: number }>> {
   if (!isString(id) || !isBoolean(revokeVolunteers)) return invalidInput();
   return refreshOnSuccess(
-    await service.revokeInviteCode(await createClient(), id, revokeVolunteers),
+    await service.revokeInviteCode(await createStaffClient(), id, revokeVolunteers),
   );
 }
 
 export async function setForceHiddenAction(hidden: boolean): Promise<ActionResult<null>> {
   if (!isBoolean(hidden)) return invalidInput();
-  return refreshSiteOnSuccess(await service.setForceHidden(await createClient(), hidden));
+  return refreshSiteOnSuccess(await service.setForceHidden(await createStaffClient(), hidden));
 }
 
 export async function publishSiteAction(confirm: string): Promise<ActionResult<null>> {
   if (!isString(confirm)) return invalidInput();
-  return refreshSiteOnSuccess(await service.publishSite(await createClient(), confirm));
+  return refreshSiteOnSuccess(await service.publishSite(await createStaffClient(), confirm));
 }
 
 export async function revertAcceptanceAction(confirm: string): Promise<ActionResult<null>> {
   if (!isString(confirm)) return invalidInput();
-  return refreshSiteOnSuccess(await service.revertAcceptance(await createClient(), confirm));
+  return refreshSiteOnSuccess(await service.revertAcceptance(await createStaffClient(), confirm));
 }
 
 export async function resetRehearsalAction(confirm: string): Promise<ActionResult<null>> {
   if (!isString(confirm)) return invalidInput();
-  return refreshOnSuccess(await service.resetRehearsal(await createClient(), confirm));
+  return refreshOnSuccess(await service.resetRehearsal(await createStaffClient(), confirm));
 }
 
 export async function createCoverageAssigneeAction(
@@ -108,7 +108,11 @@ export async function createCoverageAssigneeAction(
   const parsed = parseRanges(ranges);
   if (!isString(label) || !isString(note) || !parsed) return invalidInput();
   return refreshOnSuccess(
-    await service.createCoverageAssignee(await createClient(), { label, note, ranges: parsed }),
+    await service.createCoverageAssignee(await createStaffClient(), {
+      label,
+      note,
+      ranges: parsed,
+    }),
   );
 }
 
@@ -130,7 +134,7 @@ export async function updateCoverageAssigneeAction(
     return invalidInput();
   }
   return refreshOnSuccess(
-    await service.updateCoverageAssignee(await createClient(), id, expectedUpdatedAt, {
+    await service.updateCoverageAssignee(await createStaffClient(), id, expectedUpdatedAt, {
       label,
       note,
       ranges: parsed,
@@ -144,16 +148,16 @@ export async function deleteCoverageAssigneeAction(
 ): Promise<ActionResult<null>> {
   if (!isString(id) || !isString(expectedUpdatedAt)) return invalidInput();
   return refreshOnSuccess(
-    await service.deleteCoverageAssignee(await createClient(), id, expectedUpdatedAt),
+    await service.deleteCoverageAssignee(await createStaffClient(), id, expectedUpdatedAt),
   );
 }
 
 export async function addMemberAction(email: string, role: AdminRole): Promise<ActionResult<null>> {
   if (!isString(email) || !isRole(role)) return invalidInput();
-  return refreshOnSuccess(await service.addMember(await createClient(), email, role));
+  return refreshOnSuccess(await service.addMember(await createStaffClient(), email, role));
 }
 
 export async function removeMemberAction(email: string): Promise<ActionResult<null>> {
   if (!isString(email)) return invalidInput();
-  return refreshOnSuccess(await service.removeMember(await createClient(), email));
+  return refreshOnSuccess(await service.removeMember(await createStaffClient(), email));
 }

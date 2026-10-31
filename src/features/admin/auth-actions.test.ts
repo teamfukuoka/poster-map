@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createStaffClient } from "@/lib/supabase/server";
 import { logoutAction } from "./auth-actions";
 
 jest.mock("next/navigation", () => ({ redirect: jest.fn() }));
-jest.mock("@/lib/supabase/server", () => ({ createClient: jest.fn() }));
+jest.mock("@/lib/supabase/server", () => ({ createStaffClient: jest.fn() }));
 
 const signOut = jest.fn();
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.mocked(createClient).mockResolvedValue({ auth: { signOut } } as never);
+  jest.mocked(createStaffClient).mockResolvedValue({ auth: { signOut } } as never);
 });
 
 describe("logoutAction", () => {

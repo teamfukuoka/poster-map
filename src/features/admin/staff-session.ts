@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createStaffClient } from "@/lib/supabase/server";
 import { getAdminRole } from "./admin-service";
 
 /**
@@ -10,7 +10,7 @@ import { getAdminRole } from "./admin-service";
  * 守りの本体は DB（各 RPC が役割を確かめる）で、ここは画面の出し分けに使う。
  */
 export const getStaffSession = cache(async () => {
-  const supabase = await createClient();
+  const supabase = await createStaffClient();
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims.sub) return { supabase, signedIn: false as const, role: null };
   return { supabase, signedIn: true as const, role: await getAdminRole(supabase) };

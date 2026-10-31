@@ -1,6 +1,6 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
-import { createClient } from "@/lib/supabase/server";
+import { createStaffClient } from "@/lib/supabase/server";
 import {
   addMemberAction,
   publishSiteAction,
@@ -18,7 +18,7 @@ import * as service from "./admin-service";
 jest.mock("next/cache", () => ({ revalidatePath: jest.fn(), updateTag: jest.fn() }));
 jest.mock("@/lib/site-name", () => ({ SITE_NAME_TAG: "site-name" }));
 jest.mock("@/lib/public-window", () => ({ PUBLIC_WINDOW_TAG: "public-window" }));
-jest.mock("@/lib/supabase/server", () => ({ createClient: jest.fn() }));
+jest.mock("@/lib/supabase/server", () => ({ createStaffClient: jest.fn() }));
 jest.mock("./admin-service", () => ({
   revealInviteCode: jest.fn(),
   registerInviteCode: jest.fn(),
@@ -38,7 +38,7 @@ const failure = { ok: false as const, error: "失敗" };
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.mocked(createClient).mockResolvedValue(client as never);
+  jest.mocked(createStaffClient).mockResolvedValue(client as never);
 });
 
 // Server Action はブラウザから任意の値で呼べるので、型どおりとは限らない
@@ -59,7 +59,7 @@ describe("revealInviteCodeAction", () => {
   test.each([[1], [null], [undefined], [true]])("文字列でなければ失敗を返す（%p）", async (id) => {
     await expect(call(revealInviteCodeAction, id)).resolves.toEqual(invalid);
     expect(service.revealInviteCode).not.toHaveBeenCalled();
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createStaffClient).not.toHaveBeenCalled();
   });
 });
 
@@ -203,7 +203,7 @@ describe.each([
   test.each([[1], [null], [undefined], [true]])("文字列でなければ失敗を返す（%p）", async (v) => {
     await expect(call(action, v)).resolves.toEqual(invalid);
     expect(serviceFn).not.toHaveBeenCalled();
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createStaffClient).not.toHaveBeenCalled();
   });
 });
 
@@ -256,7 +256,7 @@ describe("addMemberAction", () => {
   ])("型か役割が違えば失敗を返す（%p, %p）", async (email, role) => {
     await expect(call(addMemberAction, email, role)).resolves.toEqual(invalid);
     expect(service.addMember).not.toHaveBeenCalled();
-    expect(createClient).not.toHaveBeenCalled();
+    expect(createStaffClient).not.toHaveBeenCalled();
   });
 });
 

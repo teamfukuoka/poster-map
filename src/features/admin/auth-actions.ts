@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { FALLBACK_MESSAGE } from "@/features/poster-map/errors";
 import type { ActionResult } from "@/features/poster-map/types";
-import { createClient } from "@/lib/supabase/server";
+import { createStaffClient } from "@/lib/supabase/server";
 import { readAppOrigin } from "./auth-redirect";
 
 function isString(value: unknown): value is string {
@@ -12,7 +12,7 @@ function isString(value: unknown): value is string {
 
 /** Google の認可画面の URL を返す。ブラウザはその URL へ移動し、/auth/callback に戻ってくる */
 export async function startGoogleLoginAction(): Promise<ActionResult<{ url: string }>> {
-  const supabase = await createClient();
+  const supabase = await createStaffClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -34,14 +34,14 @@ export async function passwordLoginAction(
 ): Promise<ActionResult<null>> {
   if (process.env.ADMIN_PASSWORD_LOGIN !== "local") return { ok: false, error: FALLBACK_MESSAGE };
   if (!isString(email) || !isString(password)) return { ok: false, error: FALLBACK_MESSAGE };
-  const supabase = await createClient();
+  const supabase = await createStaffClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { ok: false, error: "メールアドレスかパスワードが違います。" };
   return { ok: true, data: null };
 }
 
 export async function logoutAction(): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createStaffClient();
   const { error } = await supabase.auth.signOut();
   // 通信の失敗などで Supabase 側の失効に失敗しても、この端末の Cookie は必ず消す
   if (error) await supabase.auth.signOut({ scope: "local" });

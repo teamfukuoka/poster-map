@@ -57,7 +57,7 @@ export function LoginForm({ showPasswordLogin, hasError }: Props) {
       <h1 className="font-bold text-xl">運営ログイン</h1>
       <p className="text-sm">運営の一覧に登録された Google アカウントで入れます。</p>
       <p className="text-muted-foreground text-sm">
-        このブラウザでボランティアとして参加している場合、ログインすると参加の記録が外れます。ボランティアとして報告するときは、別のブラウザかスマホを使ってください。
+        このブラウザでボランティアとして参加していても、そのまま入れます。ログイン・ログアウトしても、参加は続きます。
       </p>
       {error && (
         <p role="alert" className="text-destructive text-sm">

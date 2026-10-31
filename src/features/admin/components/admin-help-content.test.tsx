@@ -94,3 +94,10 @@ test("参加コードの配布先の名前は、管理者が後から直せる�
   expect(within(list).getByText("名前を直す")).toBeInTheDocument();
   expect(within(list).getByText(/このコードで参加した人もそのまま使えます/)).toBeInTheDocument();
 });
+
+test("ボランティアとして参加している端末でも管理画面に入れると書く", () => {
+  render(<AdminHelpContent />);
+  expect(
+    screen.getByText(/ボランティアとして参加していても、そのまま管理画面に入れます/),
+  ).toBeInTheDocument();
+});
