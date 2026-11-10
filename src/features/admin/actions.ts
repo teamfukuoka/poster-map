@@ -85,6 +85,15 @@ export async function setForceHiddenAction(hidden: boolean): Promise<ActionResul
   return refreshSiteOnSuccess(await service.setForceHidden(await createStaffClient(), hidden));
 }
 
+/**
+ * シールの報告・予約の受け付けの切り替え。地図は開くたびにシールの状態を読み直すので、
+ * 公開の画面のキャッシュは捨てなくてよい（開いたままの地図は再読み込みで変わる）
+ */
+export async function setStickerEnabledAction(enabled: boolean): Promise<ActionResult<null>> {
+  if (!isBoolean(enabled)) return invalidInput();
+  return refreshOnSuccess(await service.setStickerEnabled(await createStaffClient(), enabled));
+}
+
 export async function publishSiteAction(confirm: string): Promise<ActionResult<null>> {
   if (!isString(confirm)) return invalidInput();
   return refreshSiteOnSuccess(await service.publishSite(await createStaffClient(), confirm));

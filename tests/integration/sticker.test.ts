@@ -1,4 +1,9 @@
 import {
+  loadDashboard,
+  loadStickerEnabled,
+  setStickerEnabled,
+} from "@/features/admin/admin-service";
+import {
   anonClient,
   insertBoard,
   resetDatabase,
@@ -345,5 +350,28 @@ describe("管理画面のシール", () => {
     expect((await volunteer.rpc("admin_sticker_issues")).error).not.toBeNull();
     const { client: stranger } = await signInStaff(null);
     expect((await stranger.rpc("admin_sticker_progress")).error?.message).toBe("not_admin");
+  });
+
+  test("管理画面のまとめ（loadDashboard）にシールの状態・集計・問題ありが入る", async () => {
+    const c = await insertBoard("2-1", "done", "博多区");
+    const { client: admin } = await signInStaff("admin");
+    expect(await loadStickerEnabled(admin)).toEqual({ ok: true, data: false });
+    expect(await setStickerEnabled(admin, true)).toEqual({ ok: true, data: null });
+    expect(await loadStickerEnabled(admin)).toEqual({ ok: true, data: true });
+
+    const { client: volunteer } = await signInVolunteer("たろう");
+    await volunteer.rpc("update_sticker_status", { p_board_id: c, p_status: "issue" });
+
+    const { client: operator } = await signInStaff("operator");
+    expect((await setStickerEnabled(operator, false)).ok).toBe(false);
+    const result = await loadDashboard(operator);
+    if (!result.ok) throw new Error(result.error);
+    expect(result.data.sticker.enabled).toBe(true);
+    expect(result.data.sticker.progress).toEqual([
+      { ward: "博多区", target: 1, reserved: 0, done: 0, issue: 1 },
+    ]);
+    expect(result.data.sticker.issues).toEqual([
+      expect.objectContaining({ board_id: c, reported_by: "たろう", note: null }),
+    ]);
   });
 });

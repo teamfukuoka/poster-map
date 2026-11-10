@@ -1,8 +1,10 @@
 import {
   formatJst,
   isBeforeStaleTable,
+  showStickerTables,
   siteStateLabel,
   sortWardProgress,
+  sumStickerProgress,
   sumWardProgress,
   textOrDash,
 } from "./dashboard-view";
@@ -92,4 +94,31 @@ test("textOrDash は null・空白だけを「—」にし、HTML はそのま�
   expect(textOrDash(null)).toBe("—");
   expect(textOrDash("  ")).toBe("—");
   expect(textOrDash("<b>危険</b>")).toBe("<b>危険</b>");
+});
+
+describe("シールの表", () => {
+  const row = (reserved: number, done: number, issue: number) => ({
+    ward: "東区",
+    target: 5,
+    reserved,
+    done,
+    issue,
+  });
+
+  test("sumStickerProgress は区を足し合わせる", () => {
+    expect(sumStickerProgress([row(1, 2, 0), row(0, 1, 3)])).toEqual({
+      target: 10,
+      reserved: 1,
+      done: 3,
+      issue: 3,
+    });
+    expect(sumStickerProgress([])).toEqual({ target: 0, reserved: 0, done: 0, issue: 0 });
+  });
+
+  test("showStickerTables は、始めているか、報告が残っているときだけ true", () => {
+    expect(showStickerTables({ enabled: true, progress: [], issues: [] })).toBe(true);
+    expect(showStickerTables({ enabled: false, progress: [row(0, 0, 0)], issues: [] })).toBe(false);
+    expect(showStickerTables({ enabled: false, progress: [row(0, 1, 0)], issues: [] })).toBe(true);
+    expect(showStickerTables({ enabled: false, progress: [row(1, 0, 0)], issues: [] })).toBe(true);
+  });
 });

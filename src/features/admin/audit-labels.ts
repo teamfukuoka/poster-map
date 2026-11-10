@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
   coverage_assignee_delete: "担当者を外す",
   add_admin_member: "管理メンバーの登録",
   remove_admin_member: "管理メンバーを外す",
+  set_sticker_enabled: "シールの報告の切り替え",
 };
 
 /** 操作の記録の「操作」。知らない操作はそのまま出す */
@@ -29,6 +30,10 @@ export function auditTargetLabel(action: string, target: string | null): string 
   if (action === "set_force_hidden") {
     if (target === "true") return "止めた";
     if (target === "false") return "再開した";
+  }
+  if (action === "set_sticker_enabled") {
+    if (target === "true") return "始めた";
+    if (target === "false") return "止めた";
   }
   if (action === "reset_rehearsal" && /^\d+$/.test(target)) {
     return `履歴${target}件を消した`;

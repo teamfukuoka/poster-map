@@ -12,6 +12,7 @@ import {
   revertAcceptanceAction,
   revokeInviteCodeAction,
   setForceHiddenAction,
+  setStickerEnabledAction,
 } from "./actions";
 import * as service from "./admin-service";
 
@@ -25,6 +26,7 @@ jest.mock("./admin-service", () => ({
   revokeInviteCode: jest.fn(),
   renameInviteCode: jest.fn(),
   setForceHidden: jest.fn(),
+  setStickerEnabled: jest.fn(),
   publishSite: jest.fn(),
   revertAcceptance: jest.fn(),
   resetRehearsal: jest.fn(),
@@ -177,6 +179,32 @@ describe("setForceHiddenAction", () => {
   ])("boolean でなければ失敗を返す（%p）", async (v) => {
     await expect(call(setForceHiddenAction, v)).resolves.toEqual(invalid);
     expect(service.setForceHidden).not.toHaveBeenCalled();
+  });
+});
+
+describe("setStickerEnabledAction", () => {
+  test("boolean なら service に渡し、成功したら管理画面だけ revalidate する", async () => {
+    jest.mocked(service.setStickerEnabled).mockResolvedValue({ ok: true, data: null });
+    await expect(setStickerEnabledAction(true)).resolves.toEqual({ ok: true, data: null });
+    expect(service.setStickerEnabled).toHaveBeenCalledWith(client, true);
+    expect(revalidatePath).toHaveBeenCalledWith("/admin", "layout");
+    expect(updateTag).not.toHaveBeenCalled();
+  });
+
+  test("失敗なら revalidate しない", async () => {
+    jest.mocked(service.setStickerEnabled).mockResolvedValue(failure);
+    await expect(setStickerEnabledAction(false)).resolves.toEqual(failure);
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["true"],
+    [1],
+    [null],
+    [undefined],
+  ])("boolean でなければ失敗を返す（%p）", async (v) => {
+    await expect(call(setStickerEnabledAction, v)).resolves.toEqual(invalid);
+    expect(service.setStickerEnabled).not.toHaveBeenCalled();
   });
 });
 

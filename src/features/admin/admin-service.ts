@@ -50,14 +50,26 @@ export async function loadSiteState(client: Client): Promise<ActionResult<SiteSt
 }
 
 export async function loadDashboard(client: Client): Promise<ActionResult<Dashboard>> {
-  const [site, stale, dangerous, reports, wards] = await Promise.all([
-    client.rpc("admin_site_state"),
-    client.rpc("admin_stale_reservations"),
-    client.rpc("admin_dangerous_boards"),
-    client.rpc("admin_recent_reports"),
-    client.rpc("admin_ward_progress"),
-  ]);
-  const error = site.error ?? stale.error ?? dangerous.error ?? reports.error ?? wards.error;
+  const [site, stale, dangerous, reports, wards, stickerEnabled, stickerProgress, stickerIssues] =
+    await Promise.all([
+      client.rpc("admin_site_state"),
+      client.rpc("admin_stale_reservations"),
+      client.rpc("admin_dangerous_boards"),
+      client.rpc("admin_recent_reports"),
+      client.rpc("admin_ward_progress"),
+      client.rpc("is_sticker_enabled"),
+      client.rpc("admin_sticker_progress"),
+      client.rpc("admin_sticker_issues"),
+    ]);
+  const error =
+    site.error ??
+    stale.error ??
+    dangerous.error ??
+    reports.error ??
+    wards.error ??
+    stickerEnabled.error ??
+    stickerProgress.error ??
+    stickerIssues.error;
   if (error) return failure(error);
   const siteRow = site.data?.[0];
   if (!siteRow) return failure(null);
@@ -69,8 +81,30 @@ export async function loadDashboard(client: Client): Promise<ActionResult<Dashbo
       dangerous: dangerous.data ?? [],
       reports: reports.data ?? [],
       wards: wards.data ?? [],
+      sticker: {
+        enabled: stickerEnabled.data === true,
+        progress: stickerProgress.data ?? [],
+        issues: stickerIssues.data ?? [],
+      },
     },
   };
+}
+
+/** 「シールの報告を始める」が ON か（公開とリセットの画面用） */
+export async function loadStickerEnabled(client: Client): Promise<ActionResult<boolean>> {
+  const { data, error } = await client.rpc("is_sticker_enabled");
+  if (error) return failure(error);
+  return { ok: true, data: data === true };
+}
+
+/** シールの報告・予約を受け付けるか。管理者だけ（DB が forbidden で断る） */
+export async function setStickerEnabled(
+  client: Client,
+  enabled: boolean,
+): Promise<ActionResult<null>> {
+  const { error } = await client.rpc("admin_set_sticker_enabled", { p_enabled: enabled });
+  if (error) return failure(error);
+  return { ok: true, data: null };
 }
 
 export async function loadInviteCodes(client: Client): Promise<ActionResult<InviteCodeRow[]>> {

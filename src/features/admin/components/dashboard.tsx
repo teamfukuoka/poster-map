@@ -4,8 +4,10 @@ import { formatShare, isRehearsalNotePeriod, REHEARSAL_NOTE } from "../coverage-
 import {
   formatJst,
   isBeforeStaleTable,
+  showStickerTables,
   siteStateLabel,
   sortWardProgress,
+  sumStickerProgress,
   sumWardProgress,
   textOrDash,
 } from "../dashboard-view";
@@ -55,6 +57,8 @@ const NOWRAP = "whitespace-nowrap";
 export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
   const staleEmptyText = isBeforeStaleTable(now) ? "11月1日14:00から表示します" : EMPTY;
   const wardTotals = sumWardProgress(data.wards);
+  const showSticker = showStickerTables(data.sticker);
+  const stickerTotals = sumStickerProgress(data.sticker.progress);
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-baseline gap-x-2">
@@ -120,6 +124,43 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
           </tbody>
         </table>
       </Section>
+
+      {showSticker && (
+        <Section
+          title="シールの「問題あり」"
+          help="dashboard-sticker-issues"
+          empty={data.sticker.issues.length === 0}
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted-foreground text-xs">
+                <th className={TH}>番号</th>
+                <th className={TH}>区</th>
+                <th className={TH}>名前</th>
+                <th className={`${TH} ${NOWRAP}`}>ポスターの状況</th>
+                <th className={TH}>報告の時刻</th>
+                <th className={TH}>報告した人</th>
+                <th className={TH}>連絡事項</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.sticker.issues.map((row) => (
+                <tr key={row.board_id} className="border-t">
+                  <td className={`${TD} ${NOWRAP}`}>{row.number}</td>
+                  <td className={`${TD} ${NOWRAP}`}>{row.ward}</td>
+                  <td className={TD}>{textOrDash(row.name)}</td>
+                  <td className={`${TD} ${NOWRAP}`}>{statusLabel(row.poster_status)}</td>
+                  <td className={`${TD} ${NOWRAP}`}>{formatJst(row.reported_at)}</td>
+                  <td className={TD}>{textOrDash(row.reported_by)}</td>
+                  <td className={`${TD} min-w-48 whitespace-pre-wrap break-words`}>
+                    {textOrDash(row.note)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      )}
 
       <Section
         title="新しい連絡事項（直近24時間）"
@@ -189,6 +230,46 @@ export function Dashboard({ data, now }: { data: DashboardData; now: Date }) {
           <p className="mt-2 text-muted-foreground text-xs">{REHEARSAL_NOTE}</p>
         )}
       </Section>
+
+      {showSticker && (
+        <Section
+          title="区ごとのシールの状況"
+          help="dashboard-sticker-wards"
+          empty={data.sticker.progress.length === 0}
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted-foreground text-xs">
+                <th className={TH}>区</th>
+                <th className={`${TH} text-right`}>対象</th>
+                <th className={`${TH} text-right`}>予約</th>
+                <th className={`${TH} text-right`}>完了</th>
+                <th className={`${TH} text-right`}>問題あり</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortWardProgress(data.sticker.progress).map((row) => (
+                <tr key={row.ward} className="border-t">
+                  <td className={TD}>{row.ward}</td>
+                  <td className={`${TD} text-right`}>{row.target}</td>
+                  <td className={`${TD} text-right`}>{row.reserved}</td>
+                  <td className={`${TD} text-right`}>{formatShare(row.done, row.target)}</td>
+                  <td className={`${TD} text-right`}>{row.issue}</td>
+                </tr>
+              ))}
+              <tr className="border-t font-bold">
+                <td className={TD}>合計</td>
+                <td className={`${TD} text-right`}>{stickerTotals.target}</td>
+                <td className={`${TD} text-right`}>{stickerTotals.reserved}</td>
+                <td className={`${TD} text-right`}>
+                  {formatShare(stickerTotals.done, stickerTotals.target)}
+                </td>
+                <td className={`${TD} text-right`}>{stickerTotals.issue}</td>
+              </tr>
+            </tbody>
+          </table>
+        </Section>
+      )}
     </div>
   );
 }

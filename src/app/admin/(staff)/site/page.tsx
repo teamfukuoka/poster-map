@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { loadSiteState } from "@/features/admin/admin-service";
+import { loadSiteState, loadStickerEnabled } from "@/features/admin/admin-service";
 import { ResetRehearsal } from "@/features/admin/components/reset-rehearsal";
 import { SiteControls, SiteStatus } from "@/features/admin/components/site-controls";
+import { StickerControls } from "@/features/admin/components/sticker-controls";
 import { getStaffSession } from "@/features/admin/staff-session";
 
 export const metadata: Metadata = { title: "公開とリセット" };
@@ -21,11 +22,14 @@ export default async function SitePage() {
     );
   }
 
-  const result = await loadSiteState(supabase);
-  if (!result.ok) {
+  const [result, sticker] = await Promise.all([
+    loadSiteState(supabase),
+    loadStickerEnabled(supabase),
+  ]);
+  if (!result.ok || !sticker.ok) {
     return (
       <p role="alert" className="text-destructive text-sm">
-        {result.error}
+        {!result.ok ? result.error : !sticker.ok ? sticker.error : null}
       </p>
     );
   }
@@ -38,12 +42,16 @@ export default async function SitePage() {
       {role === "admin" ? (
         <>
           <SiteControls site={site} beforePublicFrom={now < new Date(site.public_from)} />
+          <StickerControls enabled={sticker.data} canChange />
           <ResetRehearsal canReset={now < new Date(site.rehearsal_reset_until)} />
         </>
       ) : (
-        <p className="text-muted-foreground text-sm">
-          公開の切り替えとリセットは管理者だけができます。
-        </p>
+        <>
+          <p className="text-muted-foreground text-sm">
+            公開の切り替えとリセットは管理者だけができます。
+          </p>
+          <StickerControls enabled={sticker.data} canChange={false} />
+        </>
       )}
     </div>
   );

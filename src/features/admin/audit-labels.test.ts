@@ -9,6 +9,7 @@ test.each([
   ["reveal_invite_code", "参加コードの表示"],
   ["publish", "公開（受理後の名前に切り替え）"],
   ["revert_acceptance", "受理前に戻す"],
+  ["set_sticker_enabled", "シールの報告の切り替え"],
 ])("%s は「%s」", (action, label) => {
   expect(auditActionLabel(action)).toBe(label);
 });
@@ -49,4 +50,9 @@ test("担当者の操作は読める名前になる", () => {
   expect(auditActionLabel("coverage_assignee_create")).toBe("担当者の登録");
   expect(auditActionLabel("coverage_assignee_update")).toBe("担当者の変更");
   expect(auditActionLabel("coverage_assignee_delete")).toBe("担当者を外す");
+});
+
+test("シールの報告の切り替えの対象は、始めた／止めたとして読む", () => {
+  expect(auditTargetLabel("set_sticker_enabled", "true")).toBe("始めた");
+  expect(auditTargetLabel("set_sticker_enabled", "false")).toBe("止めた");
 });

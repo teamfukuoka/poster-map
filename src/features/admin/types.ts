@@ -46,12 +46,32 @@ export type MemberRow = Omit<Row<"admin_list_members">, "role" | "last_sign_in_a
 /** admin_reveal_invite_code は、平文を持たない以前のコードでは null を返す */
 export type RevealedInviteCode = { code: string | null };
 
+/** 区ごとのシールの状況。target はポスターが完了の掲示場。reserved・done・issue はシールがその状態の掲示場 */
+export type StickerProgress = Row<"admin_sticker_progress">;
+/** シールの「問題あり」。reported_at / reported_by / note: 履歴のない掲示場、連絡事項のない報告は null */
+export type StickerIssue = Omit<
+  Row<"admin_sticker_issues">,
+  "reported_at" | "reported_by" | "note"
+> & {
+  reported_at: string | null;
+  reported_by: string | null;
+  note: string | null;
+};
+
+/** ポスターシール貼りチャレンジ。enabled: 「シールの報告を始める」が ON か */
+export type StickerDashboard = {
+  enabled: boolean;
+  progress: StickerProgress[];
+  issues: StickerIssue[];
+};
+
 export type Dashboard = {
   site: SiteState;
   stale: StaleReservation[];
   dangerous: DangerousBoard[];
   reports: RecentReport[];
   wards: WardProgress[];
+  sticker: StickerDashboard;
 };
 
 // ---- カバー地域 ----------------------------------------------------------

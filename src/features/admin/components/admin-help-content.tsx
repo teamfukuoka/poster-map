@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { toUserMessage } from "@/features/poster-map/errors";
 import { STATUS_CONFIG } from "@/features/poster-map/status";
+import { STICKER_STATUS_CONFIG } from "@/features/poster-map/sticker-status";
 import { REHEARSAL_NOTE } from "../coverage-view";
 import { HELP_SECTIONS, type HelpId, type HelpSectionId, helpTitle } from "../help-sections";
 import {
@@ -92,7 +93,11 @@ const SCREENS: { id: HelpSectionId; does: string; who: string }[] = [
     who: "見るのは全員・登録と名前の変更と失効は管理者",
   },
   { id: "coverage", does: "担当者に地域を割り当て、担当のいない掲示場を見つける", who: "全員" },
-  { id: "site", does: "一般の人への公開の切り替えと、リハーサルの片付け", who: "管理者" },
+  {
+    id: "site",
+    does: "一般の人への公開とシールの報告の切り替え、リハーサルの片付け",
+    who: "管理者",
+  },
   { id: "members", does: "管理画面に入れる人を見る・登録する・外す", who: "管理者" },
   { id: "audit", does: "管理画面での操作を新しい順に見る", who: "全員" },
 ];
@@ -352,6 +357,17 @@ export function AdminHelpContent() {
             」になっている掲示場と、その最新の報告です。区のリーダーに共有し、無理に貼りに行かせないでください。
           </p>
         </Topic>
+        <Topic id="dashboard-sticker-issues">
+          <p>
+            シールを貼りに行った人が「問題あり」と報告した掲示場と、その報告です。ポスターが剥がれている・破れているなど、貼り直しが要る掲示場です。
+          </p>
+          <Ul>
+            <li>番号と連絡事項を区のリーダーに伝えて、ポスターの貼り直しを頼みます。</li>
+            <li>
+              この表と「区ごとのシールの状況」は、シールの報告を受け付けている間か、シールの報告が残っている間だけ出ます。
+            </li>
+          </Ul>
+        </Topic>
         <Topic id="dashboard-reports">
           <p>
             直近24時間の報告のうち、連絡事項が書かれたもの・「
@@ -390,6 +406,23 @@ export function AdminHelpContent() {
               」の報告がある掲示場。
             </li>
             <li>10/31 までは「{REHEARSAL_NOTE}」と出ます。</li>
+          </Ul>
+        </Topic>
+        <Topic id="dashboard-sticker-wards">
+          <p>区ごとのシール貼りの進み具合です。</p>
+          <Ul>
+            <li>
+              <span className="font-semibold">対象</span>：ポスターが「{STATUS_CONFIG.done.label}
+              」の掲示場。シールは、ポスターを貼り終えた掲示場に貼ります。
+            </li>
+            <li>
+              <span className="font-semibold">予約・完了・問題あり</span>
+              ：それぞれの報告がある掲示場の数。完了の割合は対象に対する割合です。
+            </li>
+            <li>
+              シールを貼ったあとでポスターの状況が変わっても、「{STICKER_STATUS_CONFIG.done.label}
+              」の報告はそのまま数えます。
+            </li>
           </Ul>
         </Topic>
       </Section>
@@ -581,6 +614,23 @@ export function AdminHelpContent() {
             <li>
               切り替えたあと、一般の人の画面には最大60秒ほど前の表示が残ります。シークレットウィンドウで開いて確かめてください。
             </li>
+          </Ul>
+        </Topic>
+        <Topic id="site-sticker" adminOnly>
+          <p>
+            シール貼りの報告を受け付けるかどうかを切り替えます。いまの状態は運営にも見えます。切り替えは管理者だけができます。
+          </p>
+          <Ul>
+            <li>
+              <Ui>シールの報告を始める</Ui>
+              ：ボランティアの地図に「ポスター｜シール」の切り替えが出て、最初はシールの表示で開きます。一般の人の画面は変わりません。
+            </li>
+            <li>
+              <Ui>シールの報告を止める</Ui>
+              ：切り替えが消え、シールの報告と予約ができなくなります。これまでの報告は消えません。
+            </li>
+            <li>地図を開いたままの人は、再読み込みすると変わります。</li>
+            <li>切り替えた記録は「操作の記録」に残ります。</li>
           </Ul>
         </Topic>
         <Topic id="site-reset" adminOnly>

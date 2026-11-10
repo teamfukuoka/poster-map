@@ -1,5 +1,5 @@
 import { WARDS } from "@/features/poster-map/area";
-import type { SiteState, WardProgress } from "./types";
+import type { SiteState, StickerDashboard, StickerProgress, WardProgress } from "./types";
 
 export type SiteStateLabel = "公開中" | "止めている" | "期間外";
 
@@ -9,7 +9,7 @@ function wardOrder(ward: string): number {
 }
 
 /** WARDS の順に並べる。WARDS にない区は末尾（渡された順のまま） */
-export function sortWardProgress(rows: WardProgress[]): WardProgress[] {
+export function sortWardProgress<T extends { ward: string }>(rows: readonly T[]): T[] {
   return [...rows].sort((a, b) => wardOrder(a.ward) - wardOrder(b.ward));
 }
 
@@ -26,6 +26,29 @@ export function sumWardProgress(rows: WardProgress[]): {
     sum.done += r.done;
   }
   return sum;
+}
+
+/** 区ごとのシールの状況の合計（対象・予約・完了・問題あり） */
+export function sumStickerProgress(
+  rows: readonly StickerProgress[],
+): Omit<StickerProgress, "ward"> {
+  const sum = { target: 0, reserved: 0, done: 0, issue: 0 };
+  for (const r of rows) {
+    sum.target += r.target;
+    sum.reserved += r.reserved;
+    sum.done += r.done;
+    sum.issue += r.issue;
+  }
+  return sum;
+}
+
+/**
+ * 最初の画面にシールの表を出すか。始めている間と、止めたあとでも報告が残っている間は出す
+ * （始める前は、ポスターの表だけにしておく）
+ */
+export function showStickerTables(sticker: StickerDashboard): boolean {
+  if (sticker.enabled || sticker.issues.length > 0) return true;
+  return sticker.progress.some((r) => r.reserved + r.done + r.issue > 0);
 }
 
 /** 公開の状態。force_hidden で止めていれば、期間の内外にかかわらず「止めている」 */

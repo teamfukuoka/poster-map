@@ -10,8 +10,10 @@ export const HELP_SECTIONS = [
     topics: [
       { id: "dashboard-stale", title: "長く残っている予約" },
       { id: "dashboard-danger", title: "「危険」の報告" },
+      { id: "dashboard-sticker-issues", title: "シールの「問題あり」" },
       { id: "dashboard-reports", title: "新しい連絡事項（直近24時間）" },
       { id: "dashboard-wards", title: "区ごとの進み具合" },
+      { id: "dashboard-sticker-wards", title: "区ごとのシールの状況" },
     ],
   },
   {
@@ -43,6 +45,7 @@ export const HELP_SECTIONS = [
     topics: [
       { id: "site-status", title: "いまの設定" },
       { id: "site-publish", title: "公開の切り替え" },
+      { id: "site-sticker", title: "シールの報告の受け付け" },
       { id: "site-reset", title: "報告をまとめて戻す" },
     ],
   },
