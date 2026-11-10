@@ -9,15 +9,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { BULK_RESERVE_MAX } from "../limits";
+import { STICKER_DISPLAY_ORDER, stickerDisplayConfig } from "../map-view";
 import { PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
+import { STICKER_STATUS_CONFIG } from "../sticker-status";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isVolunteer: boolean;
+  /** シールを始めているか（参加中の人だけ true）。true のときだけシール貼りの流れを出す */
+  stickerEnabled?: boolean;
 };
 
-export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
+export function HelpDialog({ open, onOpenChange, isVolunteer, stickerEnabled = false }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
@@ -88,6 +92,8 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
           </section>
         )}
 
+        {stickerEnabled && <StickerHelp />}
+
         <p className="text-sm">
           <Link href="/guide" className="underline">
             くわしい使い方ガイド
@@ -96,5 +102,45 @@ export function HelpDialog({ open, onOpenChange, isVolunteer }: Props) {
         </p>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function StickerHelp() {
+  const { not_yet, reserved, done, issue } = STICKER_STATUS_CONFIG;
+  return (
+    <section className="space-y-2 text-sm">
+      <h3 className="font-semibold">シール貼りの流れ</h3>
+      <p>
+        地図の上の「ポスター｜シール」で切り替えます。「シール」の表示では、ピンの色がシールの状況です。
+      </p>
+      <ul className="grid grid-cols-2 gap-1">
+        {STICKER_DISPLAY_ORDER.map((display) => {
+          const { shortLabel, color } = stickerDisplayConfig(display);
+          return (
+            <li key={display} className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="h-3 w-3 shrink-0 rounded-full"
+                style={{ backgroundColor: color }}
+              />
+              {shortLabel}
+            </li>
+          );
+        })}
+      </ul>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          向かう掲示板のピンを押して「{reserved.label}
+          」で報告します。投票区を選んでいるときは、検索欄の下のボタンでまとめて予約できます。
+        </li>
+        <li>シールを貼り終えたら「{done.label}」で報告します。</li>
+        <li>行けなくなったら「{not_yet.label}」に戻してください。</li>
+        <li>
+          ポスターが剥がれている・破れているなどで貼れないときは「{issue.shortLabel}
+          」を選び、連絡事項に様子を書いてください。
+        </li>
+        <li>掲示責任者と印刷者の表示は、シールで隠さないでください。</li>
+      </ol>
+    </section>
   );
 }

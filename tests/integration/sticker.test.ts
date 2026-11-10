@@ -3,6 +3,7 @@ import {
   loadStickerEnabled,
   setStickerEnabled,
 } from "@/features/admin/admin-service";
+import { isStickerEnabled } from "@/features/poster-map/sticker-service";
 import {
   anonClient,
   insertBoard,
@@ -61,6 +62,13 @@ describe("is_sticker_enabled", () => {
     expect((await anonClient().rpc("is_sticker_enabled")).data).toBe(true);
     const { client } = await signInVolunteer("たろう");
     expect((await client.rpc("is_sticker_enabled")).data).toBe(true);
+  });
+
+  test("使い方ガイドの出し分け（isStickerEnabled）は ON/OFF をそのまま返す", async () => {
+    const { client } = await signInVolunteer("はなこ");
+    expect(await isStickerEnabled(client)).toBe(false);
+    await setAdminSettings({ stickerEnabled: true });
+    expect(await isStickerEnabled(client)).toBe(true);
   });
 });
 

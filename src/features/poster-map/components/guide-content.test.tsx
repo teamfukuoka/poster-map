@@ -121,3 +121,68 @@ test("まとめて予約（一度に30か所まで）と、自分の予約をま
     within(report).getByText(/先にピンから「完了」で報告してから使ってください/),
   ).toBeInTheDocument();
 });
+
+const STICKER_HEADING = "シール貼り（ポスターシール貼りチャレンジ）";
+
+test.each([
+  { isVolunteer: false, stickerEnabled: false },
+  { isVolunteer: true, stickerEnabled: false },
+])("シールを始めていなければ、シール貼りの項も目次も出さない（参加中: $isVolunteer）", (props) => {
+  render(<GuideContent {...props} />);
+  expect(screen.queryByRole("heading", { name: STICKER_HEADING })).not.toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: STICKER_HEADING })).not.toBeInTheDocument();
+  expect(screen.queryByText(/ポスターシール貼りチャレンジ」の期間です/)).not.toBeInTheDocument();
+});
+
+test("シールを始めていれば、冒頭の案内・目次・シール貼りの項を出す", () => {
+  render(<GuideContent isVolunteer stickerEnabled />);
+  expect(screen.getByText(/ポスターシール貼りチャレンジ」の期間です/)).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: STICKER_HEADING })).toHaveAttribute("href", "#sticker");
+  const section = sectionOf(STICKER_HEADING);
+  expect(section).toHaveAttribute("id", "sticker");
+  // 目次の順：ポスター貼りの流れのすぐ後
+  const toc = within(screen.getByRole("navigation", { name: "目次" }))
+    .getAllByRole("link")
+    .map((a) => a.textContent);
+  expect(toc[toc.indexOf("ポスター貼りの流れ") + 1]).toBe(STICKER_HEADING);
+});
+
+test("シールの色の表は、地図のフィルターと同じ並び・表示名になる", () => {
+  render(<GuideContent isVolunteer stickerEnabled />);
+  const rows = within(sectionOf(STICKER_HEADING)).getAllByRole("row").slice(1);
+  expect(rows.map((row) => within(row).getAllByRole("cell")[1].textContent)).toEqual([
+    "完了",
+    "予約",
+    "未",
+    "問題あり",
+    "対象外",
+  ]);
+});
+
+test("シール貼りの流れを、予約→シール完了→シール未に戻す、の順で書く", () => {
+  render(<GuideContent isVolunteer stickerEnabled />);
+  const items = within(sectionOf(STICKER_HEADING))
+    .getAllByRole("listitem")
+    .map((item) => item.textContent ?? "");
+  const order = ["「予約」", "「シール完了」", "「シール未」に戻す"].map((word) =>
+    items.findIndex((item) => item.includes(word)),
+  );
+  expect(order.every((index) => index >= 0)).toBe(true);
+  expect(order).toEqual([...order].sort((a, b) => a - b));
+});
+
+test("シールを貼るときに守ること：表示を隠さない・他候補に触らない・11/15 は貼らない", () => {
+  render(<GuideContent isVolunteer stickerEnabled />);
+  const section = sectionOf(STICKER_HEADING);
+  expect(
+    within(section).getByText(/掲示責任者と印刷者の表示は、シールで隠さない/),
+  ).toBeInTheDocument();
+  expect(within(section).getByText(/ほかの候補者のポスターには触らない/)).toBeInTheDocument();
+  expect(within(section).getByText(/11\/15（日）の投票日は、貼りに行かない/)).toBeInTheDocument();
+  expect(within(section).getByText(/貼る位置は、事務局の案内に従って/)).toBeInTheDocument();
+});
+
+test("シール貼りの項に、投票を呼びかける言葉を入れない", () => {
+  render(<GuideContent isVolunteer stickerEnabled />);
+  expect(sectionOf(STICKER_HEADING).textContent).not.toMatch(/投票に行|投票して|一票|応援して/);
+});

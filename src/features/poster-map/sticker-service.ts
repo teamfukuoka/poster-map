@@ -32,6 +32,16 @@ export type StickerHistoryItem = {
 
 const OFF: StickerState = { enabled: false, stickers: [], myReservedIds: [] };
 
+/** 「シールを始める」が ON か。使い方ガイドの出し分けに使う。読めないときは OFF とみなす（ガイドはポスターの案内だけになる） */
+export async function isStickerEnabled(client: Client): Promise<boolean> {
+  const { data, error } = await client.rpc("is_sticker_enabled");
+  if (error) {
+    console.error("isStickerEnabled failed", error);
+    return false;
+  }
+  return data === true;
+}
+
 /** ボランティア用。OFF のときはシールの状態を取りに行かない */
 export async function loadStickerState(client: Client): Promise<ActionResult<StickerState>> {
   const { data: enabled, error } = await client.rpc("is_sticker_enabled");

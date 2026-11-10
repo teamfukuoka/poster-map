@@ -46,3 +46,16 @@ test("参加中の人には、まとめて予約（30か所まで）とまとめ
     screen.getByText(/「自分の予約をまとめて未貼付に戻す」で一度に戻せます/),
   ).toBeInTheDocument();
 });
+
+test("シールを始めていなければ、シール貼りの流れを出さない", () => {
+  render(<HelpDialog open onOpenChange={jest.fn()} isVolunteer />);
+  expect(screen.queryByRole("heading", { name: "シール貼りの流れ" })).not.toBeInTheDocument();
+});
+
+test("シールを始めていれば、シールの色と流れ・表示を隠さないことを出す", () => {
+  render(<HelpDialog open onOpenChange={jest.fn()} isVolunteer stickerEnabled />);
+  const section = screen.getByRole("heading", { name: "シール貼りの流れ" }).closest("section");
+  expect(section).toHaveTextContent("対象外");
+  expect(section).toHaveTextContent("「シール完了」で報告");
+  expect(section).toHaveTextContent("掲示責任者と印刷者の表示は、シールで隠さないでください");
+});

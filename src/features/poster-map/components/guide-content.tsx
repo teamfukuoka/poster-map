@@ -2,12 +2,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { FALLBACK_MESSAGE, toUserMessage } from "../errors";
 import { BULK_RESERVE_MAX, DISPLAY_NAME_MAX_LENGTH, NOTE_MAX_LENGTH } from "../limits";
+import { STICKER_DISPLAY_ORDER, type StickerDisplay, stickerDisplayConfig } from "../map-view";
 import { LOAD_ERROR } from "../public-boards";
 import { type BoardStatus, PIE_ORDER, STATUS_CONFIG, statusLabels } from "../status";
+import { STICKER_STATUS_CONFIG } from "../sticker-status";
 
 type Props = {
   /** 参加中のボランティアか。取材・ネットの投稿への対応、交通費の案内、陣営内の問い合わせ先は参加中の人にだけ出す */
   isVolunteer: boolean;
+  /** シールを始めているか（参加中の人だけ true）。true のときだけシール貼りの項を出す */
+  stickerEnabled?: boolean;
   /** 陣営内の問い合わせ先（VOLUNTEER_CONTACT）。未設定なら受け取った担当者を案内する */
   volunteerContact?: string;
 };
@@ -24,6 +28,14 @@ const STATUS_MEANING: Record<BoardStatus, string> = {
   not_yet_dangerous: "貼りに行くのが危ない",
   error_wrong_poster: "貼る区画にほかのポスターがあって貼れない",
   other: "連絡事項に様子が書いてある",
+};
+
+const STICKER_MEANING: Record<StickerDisplay, string> = {
+  done: "シールを貼り終えた",
+  reserved: "誰かがシールを貼りに向かっている",
+  not_yet: "ポスターは貼ってあり、シールはまだ",
+  issue: "ポスターが剥がれている・破れているなどで、シールを貼れない",
+  not_target: "ポスターがまだ完了していない（シールの対象外）",
 };
 
 /** 一般の人に出す意味。他候補のポスターがあることは、参加中のボランティアにだけ出す */
@@ -85,6 +97,7 @@ const SECTIONS = [
   ["open", "地図を開く"],
   ["join", "参加する（最初の 1 回だけ）"],
   ["flow", "ポスター貼りの流れ"],
+  ["sticker", "シール貼り（ポスターシール貼りチャレンジ）"],
   ["read", "地図の見方"],
   ["search", "掲示場を探す"],
   ["pin", "ピンを押すと"],
@@ -110,8 +123,9 @@ function Section({ id, children }: { id: SectionId; children: ReactNode }) {
 const TABLE =
   "w-full border-collapse text-left text-sm [&_td]:border [&_td]:p-2 [&_th]:border [&_th]:bg-muted [&_th]:p-2";
 
-export function GuideContent({ isVolunteer, volunteerContact }: Props) {
+export function GuideContent({ isVolunteer, stickerEnabled = false, volunteerContact }: Props) {
   const contact = isVolunteer && volunteerContact ? volunteerContact : FALLBACK_CONTACT;
+  const sections = SECTIONS.filter(([id]) => id !== "sticker" || stickerEnabled);
   return (
     <article className="mx-auto max-w-2xl space-y-6 text-sm leading-relaxed">
       <header className="space-y-2">
@@ -121,6 +135,16 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           福岡市内の公営のポスター掲示場を地図にして、「これから行く場所」と「貼り終えた場所」をみんなで共有するためのサイトです。同じ場所に二人で行ってしまうことや、貼り残しを減らせます。
         </p>
       </header>
+
+      {stickerEnabled && (
+        <p className="rounded-lg bg-muted p-4">
+          いまは、貼り終えたポスターにシールを貼る「ポスターシール貼りチャレンジ」の期間です。手順は
+          <a href="#sticker" className="underline">
+            シール貼り
+          </a>
+          を見てください。
+        </p>
+      )}
 
       <div className="space-y-1 rounded-lg border border-brand bg-card p-4">
         <p className="font-semibold">最初にこれだけ</p>
@@ -139,7 +163,7 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
 
       <nav aria-label="目次" className="rounded-lg bg-muted p-4">
         <ol className="list-decimal space-y-0.5 pl-5">
-          {SECTIONS.map(([id, title]) => (
+          {sections.map(([id, title]) => (
             <li key={id}>
               <a href={`#${id}`} className="underline">
                 {title}
@@ -237,6 +261,8 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
           </li>
         </ol>
       </Section>
+
+      {stickerEnabled && <StickerSection />}
 
       <Section id="read">
         <ul className="list-disc space-y-1 pl-5">
@@ -480,5 +506,109 @@ export function GuideContent({ isVolunteer, volunteerContact }: Props) {
         </Link>
       </p>
     </article>
+  );
+}
+
+/** シール貼りの手順。シールの中身（画像）と貼る位置は事務局の案内に任せ、ここには書かない */
+function StickerSection() {
+  const { not_yet, reserved, done, issue } = STICKER_STATUS_CONFIG;
+  return (
+    <Section id="sticker">
+      <p>
+        ポスターを貼り終えた掲示場で、事務局から受け取ったシールをポスターに貼ります。報告のしかたは、ポスター貼りと同じです。
+      </p>
+      <p className="font-semibold">地図の切り替え</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>
+          地図の上の「ポスター｜シール」で表示を切り替えます。いまは、開くと「シール」の表示になります。
+        </li>
+        <li>
+          「シール」の表示では、ピンの色がシールの状況になります。ポスターがまだ完了していない掲示場は薄いグレーで、シールの対象外です。
+        </li>
+        <li>ポスターの状況を見るとき・報告するときは「ポスター」に切り替えてください。</li>
+      </ul>
+      <table className={TABLE}>
+        <thead>
+          <tr>
+            <th>色</th>
+            <th>状況</th>
+            <th>意味</th>
+          </tr>
+        </thead>
+        <tbody>
+          {STICKER_DISPLAY_ORDER.map((display) => {
+            const { shortLabel, color } = stickerDisplayConfig(display);
+            return (
+              <tr key={display}>
+                <td>
+                  <span
+                    aria-hidden
+                    className="inline-block h-3 w-3 rounded-full align-middle"
+                    style={{ backgroundColor: color }}
+                  />
+                </td>
+                <td className="whitespace-nowrap">{shortLabel}</td>
+                <td>{STICKER_MEANING[display]}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="font-semibold">シール貼りの流れ</p>
+      <ol className="list-decimal space-y-1 pl-5">
+        <li>
+          「掲示板を探す」で担当の投票区を選ぶ。「フィルター」で「{not_yet.shortLabel}
+          」だけにすると、まだ誰も向かっていない掲示場が分かります。
+        </li>
+        <li>
+          向かう掲示場のピンを押し、「シールの状況を報告」で「{reserved.label}
+          」を選んで報告する。投票区を選んでいるときは、検索欄の下の「選んでいる投票区の
+          {not_yet.label} 〇か所をまとめて予約」でまとめて予約できます（一度に{BULK_RESERVE_MAX}
+          か所まで）。
+        </li>
+        <li>
+          シールを貼り終えたら、同じピンで「{done.label}
+          」を選んで報告する。その場ですぐ貼れるときは、予約しないで「{done.label}
+          」だけでかまいません。
+        </li>
+        <li>
+          回りきれなかった掲示場は、その日のうちに「{not_yet.label}」に戻す。「自分の予約
+          〇か所をまとめて{not_yet.label}に戻す」で、一度に戻せます。
+        </li>
+      </ol>
+      <p className="font-semibold">こんなときは</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>
+          ポスターが剥がれている・破れている・汚れていて、シールを貼れない →「{issue.shortLabel}
+          」を選び、連絡事項に様子を書く。事務局が確かめます。
+        </li>
+        <li>
+          地図ではポスターが完了なのに、現地にポスターがない →
+          シールの報告の画面の「ポスターの状況を報告」から、ポスターの状況を直してください。
+        </li>
+        <li>間違えて報告した → もう一度正しい状況で報告すれば、上書きされます。</li>
+      </ul>
+      <p className="font-semibold">シールを貼るときに守ること</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>
+          貼るのは、事務局から受け取ったシールだけ。自分で作ったり、書き足したりしないでください。
+        </li>
+        <li>貼る位置は、事務局の案内に従ってください。</li>
+        <li>ポスターに書かれている掲示責任者と印刷者の表示は、シールで隠さないでください。</li>
+        <li>
+          シールを貼るのは、私たちのポスターだけ。ほかの候補者のポスターには触らないでください。
+        </li>
+        <li>
+          シール貼りも選挙運動です。11/14（土）まで。11/15（日）の投票日は、貼りに行かないでください。
+        </li>
+        <li>
+          そのほかは「
+          <a href="#rules" className="underline">
+            選挙のルール
+          </a>
+          」と同じです。
+        </li>
+      </ul>
+    </Section>
   );
 }

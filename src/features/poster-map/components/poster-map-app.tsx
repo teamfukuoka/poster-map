@@ -447,7 +447,12 @@ export function PosterMapApp({ initialViewer, initialClosed = false }: Props) {
         <InfoDialog board={selected} canJoin={canJoin} onJoin={openJoin} onClose={closeSelected} />
       )}
       <JoinDialog open={isJoinOpen} onOpenChange={handleJoinOpenChange} onJoined={handleJoined} />
-      <HelpDialog open={isHelpOpen} onOpenChange={setIsHelpOpen} isVolunteer={isVolunteer} />
+      <HelpDialog
+        open={isHelpOpen}
+        onOpenChange={setIsHelpOpen}
+        isVolunteer={isVolunteer}
+        stickerEnabled={stickerEnabled}
+      />
     </div>
   );
 }
