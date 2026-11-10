@@ -1,53 +1,58 @@
 // Derived from action-board (AGPL-3.0). See NOTICE.md. Modified 2026-10.
 import { escapeHtml } from "./html";
-import type { StatusCounts } from "./stats";
-import { type BoardStatus, PIE_ORDER, STATUS_CONFIG, statusLabels } from "./status";
+import type { Segment } from "./map-view";
 import type { MapBoard } from "./types";
 
-export function markerIconHtml(status: BoardStatus): string {
-  return `<div style="background-color: ${STATUS_CONFIG[status].color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`;
+/** 1 か所のマーカー。faded はシールの表示で対象外の掲示板（小さく薄く） */
+export function markerIconHtml(color: string, faded = false): string {
+  const size = faded ? 14 : 20;
+  const opacity = faded ? " opacity: 0.8;" : "";
+  return `<div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);${opacity}"></div>`;
 }
 
-export function pieSegmentsSvg(counts: StatusCounts, total: number, size: number): string {
+function totalOf(segments: readonly Segment[]): number {
+  return segments.reduce((sum, s) => sum + s.count, 0);
+}
+
+/** 区分の並び順に、件数の割合で扇形を描く（0 件の区分は描かない） */
+export function pieSegmentsSvg(segments: readonly Segment[], total: number, size: number): string {
   const radius = (size - 6) / 2;
   const center = size / 2;
   const circumference = 2 * Math.PI * radius;
-  const segments: string[] = [];
+  const parts: string[] = [];
   let cumulative = 0;
 
-  for (const status of PIE_ORDER) {
-    const count = counts[status];
+  for (const { count, color } of segments) {
     if (count === 0) continue;
     const ratio = count / total;
-    const color = STATUS_CONFIG[status].color;
 
     if (ratio >= 1) {
-      segments.push(`<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" />`);
+      parts.push(`<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" />`);
       break;
     }
 
     const strokeLength = circumference * ratio;
     const rotation = cumulative * 360 - 90;
-    segments.push(
+    parts.push(
       `<circle cx="${center}" cy="${center}" r="${radius}" fill="none" stroke="${color}" stroke-width="${radius * 2}" stroke-dasharray="${strokeLength} ${circumference - strokeLength}" transform="rotate(${rotation} ${center} ${center})" />`,
     );
     cumulative += ratio;
   }
 
-  return segments.join("");
+  return parts.join("");
 }
 
-export function clusterIconHtml(counts: StatusCounts): { html: string; size: number } {
-  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+export function clusterIconHtml(segments: readonly Segment[]): { html: string; size: number } {
+  const total = totalOf(segments);
   const size = total < 10 ? 35 : total < 100 ? 45 : 55;
   const fontSize = size < 40 ? 11 : size < 50 ? 13 : 15;
-  const present = PIE_ORDER.filter((status) => counts[status] > 0);
+  const present = segments.filter((s) => s.count > 0);
 
   let inner: string;
   if (present.length > 1) {
-    inner = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="position: absolute; top: -3px; left: -3px;">${pieSegmentsSvg(counts, total, size)}<text x="${size / 2}" y="${size / 2}" text-anchor="middle" dominant-baseline="central" fill="white" font-size="${fontSize}px" font-weight="bold" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${total}</text></svg>`;
+    inner = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="position: absolute; top: -3px; left: -3px;">${pieSegmentsSvg(segments, total, size)}<text x="${size / 2}" y="${size / 2}" text-anchor="middle" dominant-baseline="central" fill="white" font-size="${fontSize}px" font-weight="bold" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${total}</text></svg>`;
   } else {
-    const color = STATUS_CONFIG[present[0] ?? "not_yet"].color;
+    const color = present[0]?.color ?? "#757575";
     inner = `<div style="background-color: ${color}; width: calc(100% + 6px); height: calc(100% + 6px); border-radius: 50%; position: absolute; top: -3px; left: -3px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: ${fontSize}px; text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">${total}</div>`;
   }
 
@@ -57,12 +62,11 @@ export function clusterIconHtml(counts: StatusCounts): { html: string; size: num
   };
 }
 
-export function clusterTooltipHtml(counts: StatusCounts, isVolunteer: boolean): string {
-  const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
-  const lines = PIE_ORDER.filter((status) => counts[status] > 0).map(
-    (status) => `${statusLabels(status, isVolunteer).shortLabel}: ${counts[status]}`,
-  );
-  return [`掲示板数: ${total}`, ...lines].join("<br>");
+export function clusterTooltipHtml(segments: readonly Segment[]): string {
+  const lines = segments
+    .filter((s) => s.count > 0)
+    .map((s) => `${escapeHtml(s.label)}: ${s.count}`);
+  return [`掲示板数: ${totalOf(segments)}`, ...lines].join("<br>");
 }
 
 export function boardTooltipHtml(

@@ -10,6 +10,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DEFAULT_ZOOM, MAP_CENTER, MAX_ZOOM } from "../area";
 import { flyToBoard } from "../fly-to-board";
+import type { MapView } from "../map-view";
 import {
   boardTooltipHtml,
   clusterIconHtml,
@@ -18,7 +19,6 @@ import {
   offsetPosition,
 } from "../marker-icons";
 import { type DistrictHit, districtOf, parseDistrictsParam, withDistrictsParam } from "../search";
-import { countByStatus } from "../stats";
 import type { MapBoard } from "../types";
 import { BoardSearch } from "./board-search";
 
@@ -30,8 +30,8 @@ type Props = {
   /** 検索の対象（フィルターに関係なく全部） */
   allBoards: readonly MapBoard[];
   onBoardClick: (board: MapBoard) => void;
-  /** 参加中のボランティアか。クラスタのツールチップの呼び方を変える */
-  isVolunteer: boolean;
+  /** ポスターかシールか。マーカーの色とクラスタの内訳を決める */
+  view: MapView;
   /** 地図の右上に重ねるもの（フィルター） */
   controls?: ReactNode;
   /** 検索欄の下に出すもの（選んでいる投票区を受け取る）。全画面のときは出さない */
@@ -58,21 +58,11 @@ function districtBounds(
 
 const DISTRICT_FIT = { padding: [40, 40] as [number, number], maxZoom: 17 };
 
-function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
-  const { html, size } = clusterIconHtml(countByStatus(childBoards(cluster)));
-  return L.divIcon({
-    html,
-    className: "custom-cluster",
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-}
-
 export default function PosterMap({
   boards,
   allBoards,
   onBoardClick,
-  isVolunteer,
+  view,
   controls,
   districtActions,
 }: Props) {
@@ -82,8 +72,8 @@ export default function PosterMap({
   const locationRef = useRef<L.CircleMarker | null>(null);
   /** 検索で最後に選んだ掲示板。移動の間に選び直されたら、前のダイアログは開かない */
   const lastSearchedRef = useRef<MapBoard | null>(null);
-  /** 地図は一度だけ作るので、ツールチップからは ref で今の値を読む */
-  const isVolunteerRef = useRef(isVolunteer);
+  /** 地図は一度だけ作るので、クラスタの絵とツールチップからは ref で今の表示を読む */
+  const viewRef = useRef(view);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
   /** 検索で選んだ投票区（選んだ順）。選んでいる間は、その投票区のピンだけを出す。URL から始める */
@@ -104,9 +94,10 @@ export default function PosterMap({
     if (next !== current) window.history.replaceState(window.history.state, "", next);
   }, [districts]);
 
+  // マーカーを作り直す effect より前に置く（作り直したクラスタが新しい表示で描かれるように）
   useEffect(() => {
-    isVolunteerRef.current = isVolunteer;
-  }, [isVolunteer]);
+    viewRef.current = view;
+  }, [view]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: 地図は一度だけ作る。範囲は開いたときの値で決める
   useEffect(() => {
@@ -123,7 +114,15 @@ export default function PosterMap({
 
     const cluster = L.markerClusterGroup({
       maxClusterRadius: 50,
-      iconCreateFunction: createClusterIcon,
+      iconCreateFunction: (c) => {
+        const { html, size } = clusterIconHtml(viewRef.current.segments(childBoards(c)));
+        return L.divIcon({
+          html,
+          className: "custom-cluster",
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
+        });
+      },
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
@@ -136,13 +135,10 @@ export default function PosterMap({
     cluster.on("clustermouseover", (e) => {
       const target = (e as L.LeafletEvent & { propagatedFrom: L.MarkerCluster }).propagatedFrom;
       target
-        .bindTooltip(
-          clusterTooltipHtml(countByStatus(childBoards(target)), isVolunteerRef.current),
-          {
-            direction: "top",
-            className: "cluster-tooltip",
-          },
-        )
+        .bindTooltip(clusterTooltipHtml(viewRef.current.segments(childBoards(target))), {
+          direction: "top",
+          className: "cluster-tooltip",
+        })
         .openTooltip();
     });
     cluster.on("clustermouseout", (e) => {
@@ -175,14 +171,16 @@ export default function PosterMap({
     const markers: L.Marker[] = [];
     for (const group of byLocation.values()) {
       group.forEach((board, index) => {
+        const { color, faded } = view.marker(board);
+        const size = faded ? 14 : 20;
         const marker: MarkerWithBoard = L.marker(
           offsetPosition(board.lat, board.long, index, group.length),
           {
             icon: L.divIcon({
-              html: markerIconHtml(board.status),
+              html: markerIconHtml(color, faded),
               className: "custom-marker",
-              iconSize: [20, 20],
-              iconAnchor: [10, 10],
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
             }),
             keyboard: true,
             title: `#${board.number} ${board.name}`,
@@ -197,7 +195,7 @@ export default function PosterMap({
       });
     }
     cluster.addLayers(markers);
-  }, [shownBoards, onBoardClick]);
+  }, [shownBoards, onBoardClick, view]);
 
   // 現在地はボタンを押したときだけ取得する（送信しない・追跡しない）
   const handleLocate = () => {

@@ -1,3 +1,4 @@
+import { countStickerDisplays, posterSegments, stickerSegments } from "./map-view";
 import {
   boardTooltipHtml,
   clusterIconHtml,
@@ -8,14 +9,21 @@ import {
 } from "./marker-icons";
 import { emptyStatusCounts } from "./stats";
 
-function counts(partial: Partial<ReturnType<typeof emptyStatusCounts>>) {
-  return { ...emptyStatusCounts(), ...partial };
+function counts(partial: Partial<ReturnType<typeof emptyStatusCounts>>, isVolunteer = false) {
+  return posterSegments({ ...emptyStatusCounts(), ...partial }, isVolunteer);
 }
 
-test("markerIconHtml はステータスの色の丸を返す", () => {
-  const html = markerIconHtml("done");
+test("markerIconHtml は渡した色の丸を返す", () => {
+  const html = markerIconHtml("#00AFCC");
   expect(html).toContain("background-color: #00AFCC");
   expect(html).toContain("width: 20px");
+  expect(html).not.toContain("opacity");
+});
+
+test("markerIconHtml は faded なら小さく薄くする", () => {
+  const html = markerIconHtml("#D4D4D4", true);
+  expect(html).toContain("width: 14px");
+  expect(html).toContain("opacity: 0.8");
 });
 
 test("1種類だけなら円グラフは塗りつぶしの円1つ", () => {
@@ -47,18 +55,29 @@ test("クラスタが1種類なら単色、複数なら円グラフ", () => {
 });
 
 test("クラスタのツールチップは件数と短い表示名を並べる", () => {
-  expect(clusterTooltipHtml(counts({ not_yet: 1, done: 2 }), false)).toBe(
+  expect(clusterTooltipHtml(counts({ not_yet: 1, done: 2 }))).toBe(
     "掲示板数: 3<br>完了: 2<br>未貼付: 1",
   );
 });
 
 test("クラスタのツールチップは、一般の人には他候補を「要確認」と出す", () => {
-  expect(clusterTooltipHtml(counts({ error_wrong_poster: 1 }), false)).toBe(
-    "掲示板数: 1<br>要確認: 1",
-  );
-  expect(clusterTooltipHtml(counts({ error_wrong_poster: 1 }), true)).toBe(
+  expect(clusterTooltipHtml(counts({ error_wrong_poster: 1 }))).toBe("掲示板数: 1<br>要確認: 1");
+  expect(clusterTooltipHtml(counts({ error_wrong_poster: 1 }, true))).toBe(
     "掲示板数: 1<br>他候補: 1",
   );
+});
+
+test("シールの表示では、クラスタをシールの状態と対象外で塗り分ける", () => {
+  const boards = [
+    { id: "a", status: "done" as const },
+    { id: "b", status: "done" as const },
+    { id: "c", status: "not_yet" as const },
+  ];
+  const segments = stickerSegments(countStickerDisplays(boards, new Map([["a", "done"]])));
+  expect(clusterTooltipHtml(segments)).toBe("掲示板数: 3<br>完了: 1<br>未: 1<br>対象外: 1");
+  const svg = pieSegmentsSvg(segments, 3, 35);
+  const strokes = [...svg.matchAll(/stroke="(#[0-9A-F]+)"/g)].map((m) => m[1]);
+  expect(strokes).toEqual(["#00AFCC", "#757575", "#D4D4D4"]);
 });
 
 test("掲示板のツールチップは名称と住所をエスケープする", () => {

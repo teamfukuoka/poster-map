@@ -4,8 +4,11 @@ import {
   loadHistoryAction,
   loadMyBoardIdsAction,
   loadMyReservedBoardIdsAction,
+  loadStickerHistoryAction,
+  loadStickerStateAction,
   loadVolunteerBoardsAction,
   updateStatusAction,
+  updateStickerAction,
 } from "../actions";
 import { FALLBACK_MESSAGE } from "../errors";
 import { fetchPublicBoards } from "../public-boards";
@@ -37,8 +40,15 @@ jest.mock("../actions", () => ({
   loadHistoryAction: jest.fn(),
   loadMyBoardIdsAction: jest.fn(),
   loadMyReservedBoardIdsAction: jest.fn(),
+  loadStickerHistoryAction: jest.fn(),
+  loadStickerStateAction: jest.fn(),
   loadVolunteerBoardsAction: jest.fn(),
+  releaseMyReservationsAction: jest.fn(),
+  releaseMyStickerReservationsAction: jest.fn(),
+  reserveBoardsAction: jest.fn(),
+  reserveStickersAction: jest.fn(),
   updateStatusAction: jest.fn(),
+  updateStickerAction: jest.fn(),
 }));
 jest.mock("../public-boards", () => ({ fetchPublicBoards: jest.fn() }));
 jest.mock("sonner", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
@@ -58,6 +68,10 @@ const board = (id: string, status: MapBoard["status"] = "not_yet"): MapBoard => 
 beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(loadMyReservedBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+  jest
+    .mocked(loadStickerStateAction)
+    .mockResolvedValue({ ok: true, data: { enabled: false, stickers: [], myReservedIds: [] } });
+  window.history.replaceState(null, "", "/");
 });
 
 test("一般の人には公開 API の掲示板を出し、押すと情報ダイアログを開く", async () => {
@@ -258,4 +272,97 @@ test("一般の閲覧者はタブに戻っても取り直さない", async () =>
   expect(await screen.findByTestId("map-count")).toHaveTextContent("1");
   returnToTab();
   expect(fetchPublicBoards).toHaveBeenCalledTimes(1);
+});
+
+describe("ポスターシール貼りチャレンジ", () => {
+  const volunteer = { kind: "volunteer", displayName: "はなこ" } as const;
+
+  function stickerOn(stickers: { boardId: string; status: "reserved" | "done" | "issue" }[] = []) {
+    jest
+      .mocked(loadVolunteerBoardsAction)
+      .mockResolvedValue({ ok: true, data: [board("1", "done"), board("2", "done"), board("3")] });
+    jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+    jest.mocked(loadHistoryAction).mockResolvedValue({ ok: true, data: [] });
+    jest.mocked(loadStickerHistoryAction).mockResolvedValue({ ok: true, data: [] });
+    jest
+      .mocked(loadStickerStateAction)
+      .mockResolvedValue({ ok: true, data: { enabled: true, stickers, myReservedIds: [] } });
+  }
+
+  test("シールを始めていなければ、切り替えを出さずポスターの表示のまま", async () => {
+    jest.mocked(loadVolunteerBoardsAction).mockResolvedValue({ ok: true, data: [board("1")] });
+    jest.mocked(loadMyBoardIdsAction).mockResolvedValue({ ok: true, data: [] });
+    render(<PosterMapApp initialViewer={volunteer} />);
+    expect(await screen.findByTestId("summary-percent")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "シール" })).not.toBeInTheDocument();
+  });
+
+  test("一般の人にはシールの状態を読みに行かない", async () => {
+    jest.mocked(fetchPublicBoards).mockResolvedValue({ kind: "ok", boards: [board("1")] });
+    render(<PosterMapApp initialViewer={{ kind: "public" }} />);
+    expect(await screen.findByTestId("map-count")).toBeInTheDocument();
+    expect(loadStickerStateAction).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "シール" })).not.toBeInTheDocument();
+  });
+
+  test("シールを始めていれば、最初はシールの表示で開き、対象はポスターが完了の掲示板", async () => {
+    stickerOn([{ boardId: "1", status: "done" }]);
+    render(<PosterMapApp initialViewer={volunteer} />);
+    expect(await screen.findByTestId("sticker-target")).toHaveTextContent("2");
+    expect(screen.getByTestId("sticker-done")).toHaveTextContent("1");
+    expect(screen.getByTestId("sticker-percent")).toHaveTextContent("50");
+    expect(screen.getByRole("button", { name: "シール" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("区ごとのシールの状況")).toBeInTheDocument();
+  });
+
+  test("URL で view=poster ならポスターで開き、切り替えると URL に残す", async () => {
+    stickerOn();
+    window.history.replaceState(null, "", "/?districts=x&view=poster");
+    render(<PosterMapApp initialViewer={volunteer} />);
+    expect(await screen.findByRole("button", { name: "ポスター" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByTestId("summary-percent")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "シール" }));
+    expect(await screen.findByTestId("sticker-target")).toBeInTheDocument();
+    expect(window.location.search).toBe("?districts=x&view=sticker");
+  });
+
+  test("シールの表示でピンを押すとシールの報告を開き、報告が集計に反映される", async () => {
+    stickerOn();
+    jest
+      .mocked(updateStickerAction)
+      .mockResolvedValue({ ok: true, data: { boardId: "1", status: "done" } });
+    render(<PosterMapApp initialViewer={volunteer} />);
+    fireEvent.click(await screen.findByRole("button", { name: "pin-1" }));
+    expect(await screen.findByText("シールの状況を報告")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "報告する" }));
+    await waitFor(() => expect(screen.getByTestId("sticker-done")).toHaveTextContent("1"));
+    expect(updateStickerAction).toHaveBeenCalledWith({ boardId: "1", status: "not_yet", note: "" });
+    expect(updateStatusAction).not.toHaveBeenCalled();
+  });
+
+  test("シールの報告から、同じ掲示板のポスターの報告に切り替えられる", async () => {
+    stickerOn();
+    jest.mocked(updateStatusAction).mockResolvedValue({ ok: true, data: board("3", "done") });
+    render(<PosterMapApp initialViewer={volunteer} />);
+    fireEvent.click(await screen.findByRole("button", { name: "pin-3" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ポスターの状況を報告" }));
+    expect(
+      await screen.findByRole("heading", { name: "ポスターの状況を報告" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "報告する" }));
+    // ポスターが完了になれば、シールの対象に入る
+    await waitFor(() => expect(screen.getByTestId("sticker-target")).toHaveTextContent("3"));
+  });
+
+  test("シールのフィルターで、対象外の掲示板を地図から外せる", async () => {
+    stickerOn();
+    render(<PosterMapApp initialViewer={volunteer} />);
+    expect(await screen.findByTestId("map-count")).toHaveTextContent("3");
+    fireEvent.click(screen.getByRole("button", { name: /フィルター/ }));
+    fireEvent.click(screen.getByLabelText("対象外"));
+    expect(screen.getByTestId("map-count")).toHaveTextContent("2");
+  });
 });

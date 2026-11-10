@@ -4,6 +4,7 @@
 // Server Action はブラウザから任意の値で呼べるので、入口で引数の型を確かめる。
 import { createClient } from "@/lib/supabase/server";
 import { toUserMessage } from "./errors";
+import * as sticker from "./sticker-service";
 import type { ActionResult, HistoryItem, MapBoard } from "./types";
 import * as service from "./volunteer-service";
 
@@ -62,4 +63,37 @@ export async function releaseMyReservationsAction(): Promise<ActionResult<MapBoa
 
 export async function loadMyReservedBoardIdsAction(): Promise<ActionResult<string[]>> {
   return service.loadMyReservedBoardIds(await createClient());
+}
+
+// ポスターシール貼りチャレンジ -------------------------------------------------
+
+export async function loadStickerStateAction(): Promise<ActionResult<sticker.StickerState>> {
+  return sticker.loadStickerState(await createClient());
+}
+
+export async function loadStickerHistoryAction(
+  boardId: string,
+): Promise<ActionResult<sticker.StickerHistoryItem[]>> {
+  if (!isString(boardId)) return invalidInput();
+  return sticker.loadStickerHistory(await createClient(), boardId);
+}
+
+export async function updateStickerAction(input: {
+  boardId: string;
+  status: string;
+  note: string;
+}): Promise<ActionResult<sticker.StickerEntry>> {
+  if (typeof input !== "object" || input === null) return invalidInput();
+  const { boardId, status, note } = input;
+  if (!isString(boardId) || !isString(status) || !isString(note)) return invalidInput();
+  return sticker.updateSticker(await createClient(), { boardId, status, note });
+}
+
+export async function reserveStickersAction(boardIds: string[]): Promise<ActionResult<string[]>> {
+  if (!isStringArray(boardIds)) return invalidInput();
+  return sticker.reserveStickers(await createClient(), boardIds);
+}
+
+export async function releaseMyStickerReservationsAction(): Promise<ActionResult<string[]>> {
+  return sticker.releaseMyStickerReservations(await createClient());
 }
