@@ -133,7 +133,7 @@ function StickerHelp() {
           向かう掲示板のピンを押して「{reserved.label}
           」で報告します。投票区を選んでいるときは、検索欄の下のボタンでまとめて予約できます。
         </li>
-        <li>シールを貼り終えたら「{done.label}」で報告します。</li>
+        <li>シールをポスターの総決起大会の案内の箇所に貼り、「{done.label}」で報告します。</li>
         <li>行けなくなったら「{not_yet.label}」に戻してください。</li>
         <li>
           ポスターが剥がれている・破れているなどで貼れないときは「{issue.shortLabel}

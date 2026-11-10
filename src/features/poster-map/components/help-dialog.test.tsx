@@ -57,5 +57,6 @@ test("シールを始めていれば、シールの色と流れ・表示を隠�
   const section = screen.getByRole("heading", { name: "シール貼りの流れ" }).closest("section");
   expect(section).toHaveTextContent("対象外");
   expect(section).toHaveTextContent("「シール完了」で報告");
+  expect(section).toHaveTextContent("ポスターの総決起大会の案内の箇所に貼り");
   expect(section).toHaveTextContent("掲示責任者と印刷者の表示は、シールで隠さないでください");
 });

@@ -179,7 +179,9 @@ test("シールを貼るときに守ること：表示を隠さない・他候�
   ).toBeInTheDocument();
   expect(within(section).getByText(/ほかの候補者のポスターには触らない/)).toBeInTheDocument();
   expect(within(section).getByText(/11\/15（日）の投票日は、貼りに行かない/)).toBeInTheDocument();
-  expect(within(section).getByText(/貼る位置は、事務局の案内に従って/)).toBeInTheDocument();
+  expect(
+    within(section).getByText(/貼る位置は、ポスターの総決起大会の案内の箇所です/),
+  ).toBeInTheDocument();
 });
 
 test("シール貼りの項に、投票を呼びかける言葉を入れない", () => {

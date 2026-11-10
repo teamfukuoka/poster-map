@@ -509,13 +509,13 @@ export function GuideContent({ isVolunteer, stickerEnabled = false, volunteerCon
   );
 }
 
-/** シール貼りの手順。シールの中身（画像）と貼る位置は事務局の案内に任せ、ここには書かない */
+/** シール貼りの手順。貼る位置は総決起大会の案内の箇所（11/11 決定）。シールの画像はまだないので載せない */
 function StickerSection() {
   const { not_yet, reserved, done, issue } = STICKER_STATUS_CONFIG;
   return (
     <Section id="sticker">
       <p>
-        ポスターを貼り終えた掲示場で、事務局から受け取ったシールをポスターに貼ります。報告のしかたは、ポスター貼りと同じです。
+        ポスターを貼り終えた掲示場で、事務局から受け取ったシールを、ポスターの総決起大会の案内の箇所に貼ります。報告のしかたは、ポスター貼りと同じです。
       </p>
       <p className="font-semibold">地図の切り替え</p>
       <ul className="list-disc space-y-1 pl-5">
@@ -593,7 +593,7 @@ function StickerSection() {
         <li>
           貼るのは、事務局から受け取ったシールだけ。自分で作ったり、書き足したりしないでください。
         </li>
-        <li>貼る位置は、事務局の案内に従ってください。</li>
+        <li>貼る位置は、ポスターの総決起大会の案内の箇所です。</li>
         <li>ポスターに書かれている掲示責任者と印刷者の表示は、シールで隠さないでください。</li>
         <li>
           シールを貼るのは、私たちのポスターだけ。ほかの候補者のポスターには触らないでください。
