@@ -9,6 +9,8 @@ const MESSAGES: Record<string, string> = {
   note_too_long: "連絡事項は500文字以内で入力してください。",
   too_many_boards: "一度に予約できるのは30か所までです。投票区を減らしてください。",
   board_not_found: "掲示板が見つかりません。地図を更新してください。",
+  sticker_not_started: "シールの報告はまだ始まっていません。",
+  poster_not_done: "シールの予約・完了は、ポスターが完了の掲示板だけです。地図を更新してください。",
   over_request_rate_limit: "アクセスが集中しています。しばらくしてからもう一度お試しください。",
 };
 

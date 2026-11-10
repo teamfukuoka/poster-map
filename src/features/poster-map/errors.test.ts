@@ -28,3 +28,12 @@ test("参加コードの試行回数の上限", () => {
     "参加コードの入力に続けて失敗したため、受付を一時停止しています。15分ほどたってから、もう一度お試しください。",
   );
 });
+
+test("シールの報告のエラー", () => {
+  expect(toUserMessage({ code: "P0001", message: "sticker_not_started" })).toBe(
+    "シールの報告はまだ始まっていません。",
+  );
+  expect(toUserMessage({ code: "P0001", message: "poster_not_done" })).toBe(
+    "シールの予約・完了は、ポスターが完了の掲示板だけです。地図を更新してください。",
+  );
+});

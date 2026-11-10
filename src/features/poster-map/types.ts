@@ -1,5 +1,6 @@
 import type { Database } from "@/lib/supabase/database.types";
 import type { BoardStatus } from "./status";
+import type { StickerStatus } from "./sticker-status";
 
 type Equals<A, B> =
   (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
@@ -8,6 +9,12 @@ type Equals<A, B> =
 export const STATUS_ENUM_MATCHES_DB: Equals<
   BoardStatus,
   Database["public"]["Enums"]["poster_board_status"]
+> = true;
+
+/** sticker-status.ts と DB の enum が食い違うと、ここで型エラーになる */
+export const STICKER_ENUM_MATCHES_DB: Equals<
+  StickerStatus,
+  Database["public"]["Enums"]["sticker_status"]
 > = true;
 
 export type MapBoard = {

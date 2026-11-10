@@ -415,6 +415,18 @@ describe("関数の EXECUTE 権限（migration の grant / revoke と一致す�
     { signature: "public.my_reserved_board_ids()", anon: false, authenticated: true },
     { signature: "public.reserve_boards(uuid[])", anon: false, authenticated: true },
     { signature: "public.release_my_reservations()", anon: false, authenticated: true },
+    { signature: "public.is_sticker_enabled()", anon: true, authenticated: true },
+    {
+      signature: "public.update_sticker_status(uuid, public.sticker_status, text)",
+      anon: false,
+      authenticated: true,
+    },
+    { signature: "public.my_reserved_sticker_board_ids()", anon: false, authenticated: true },
+    { signature: "public.reserve_stickers(uuid[])", anon: false, authenticated: true },
+    { signature: "public.release_my_sticker_reservations()", anon: false, authenticated: true },
+    { signature: "public.admin_set_sticker_enabled(boolean)", anon: false, authenticated: true },
+    { signature: "public.admin_sticker_progress()", anon: false, authenticated: true },
+    { signature: "public.admin_sticker_issues()", anon: false, authenticated: true },
   ] as const;
 
   test("public スキーマの全関数について anon / authenticated / public の権限が意図どおり", async () => {

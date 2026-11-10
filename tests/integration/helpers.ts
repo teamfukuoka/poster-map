@@ -55,6 +55,7 @@ export async function setAdminSettings(values: {
   allowedAmr?: string[];
   rehearsalResetUntil?: string;
   staleReservedAfter?: string;
+  stickerEnabled?: boolean;
 }): Promise<void> {
   const sets: string[] = [];
   const params: unknown[] = [];
@@ -67,6 +68,10 @@ export async function setAdminSettings(values: {
   }
   if (values.staleReservedAfter) {
     sets.push(`stale_reserved_after = ${values.staleReservedAfter}`);
+  }
+  if (values.stickerEnabled !== undefined) {
+    params.push(values.stickerEnabled);
+    sets.push(`sticker_enabled = $${params.length}::boolean`);
   }
   if (sets.length === 0) {
     return;
@@ -120,10 +125,10 @@ export async function resetDatabase(): Promise<void> {
   }
   await withPg(async (db) => {
     await db.query(
-      "truncate public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures, private.admin_members, private.admin_audit_log, private.coverage_assignees cascade",
+      "truncate public.sticker_status_history, public.board_stickers, public.poster_board_status_history, public.volunteers, public.poster_boards, private.invite_codes, private.invite_code_failures, private.admin_members, private.admin_audit_log, private.coverage_assignees cascade",
     );
     await db.query(
-      "update private.admin_settings set allowed_amr = '{oauth}', rehearsal_reset_until = '2026-11-01 00:00:00+09', stale_reserved_after = '2026-11-01 14:00:00+09'",
+      "update private.admin_settings set allowed_amr = '{oauth}', rehearsal_reset_until = '2026-11-01 00:00:00+09', stale_reserved_after = '2026-11-01 14:00:00+09', sticker_enabled = false",
     );
     await db.query("delete from auth.users");
     await db.query(

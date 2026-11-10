@@ -9,6 +9,32 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      board_stickers: {
+        Row: {
+          board_id: string
+          status: Database["public"]["Enums"]["sticker_status"]
+          updated_at: string
+        }
+        Insert: {
+          board_id: string
+          status?: Database["public"]["Enums"]["sticker_status"]
+          updated_at?: string
+        }
+        Update: {
+          board_id?: string
+          status?: Database["public"]["Enums"]["sticker_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "board_stickers_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: true
+            referencedRelation: "poster_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       poster_board_status_history: {
         Row: {
           board_id: string
@@ -88,6 +114,47 @@ export type Database = {
           ward?: string
         }
         Relationships: []
+      }
+      sticker_status_history: {
+        Row: {
+          board_id: string
+          created_at: string
+          display_name: string
+          id: string
+          new_status: Database["public"]["Enums"]["sticker_status"]
+          note: string | null
+          previous_status: Database["public"]["Enums"]["sticker_status"]
+          user_id: string | null
+        }
+        Insert: {
+          board_id: string
+          created_at?: string
+          display_name: string
+          id?: string
+          new_status: Database["public"]["Enums"]["sticker_status"]
+          note?: string | null
+          previous_status: Database["public"]["Enums"]["sticker_status"]
+          user_id?: string | null
+        }
+        Update: {
+          board_id?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["sticker_status"]
+          note?: string | null
+          previous_status?: Database["public"]["Enums"]["sticker_status"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sticker_status_history_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "poster_boards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       volunteers: {
         Row: {
@@ -260,6 +327,10 @@ export type Database = {
         Args: { p_hidden: boolean }
         Returns: undefined
       }
+      admin_set_sticker_enabled: {
+        Args: { p_enabled: boolean }
+        Returns: boolean
+      }
       admin_site_state: {
         Args: never
         Returns: {
@@ -280,6 +351,29 @@ export type Database = {
           number: string
           reserved_at: string
           reserved_by: string
+          ward: string
+        }[]
+      }
+      admin_sticker_issues: {
+        Args: never
+        Returns: {
+          board_id: string
+          name: string
+          note: string
+          number: string
+          poster_status: Database["public"]["Enums"]["poster_board_status"]
+          reported_at: string
+          reported_by: string
+          ward: string
+        }[]
+      }
+      admin_sticker_progress: {
+        Args: never
+        Returns: {
+          done: number
+          issue: number
+          reserved: number
+          target: number
           ward: string
         }[]
       }
@@ -306,7 +400,9 @@ export type Database = {
       current_site_name: { Args: never; Returns: string }
       is_active_volunteer: { Args: never; Returns: boolean }
       is_public_window: { Args: never; Returns: boolean }
+      is_sticker_enabled: { Args: never; Returns: boolean }
       my_reserved_board_ids: { Args: never; Returns: string[] }
+      my_reserved_sticker_board_ids: { Args: never; Returns: string[] }
       register_volunteer: {
         Args: { p_code: string; p_display_name: string }
         Returns: Database["public"]["CompositeTypes"]["register_volunteer_result"]
@@ -338,6 +434,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      release_my_sticker_reservations: { Args: never; Returns: string[] }
       reserve_boards: {
         Args: { p_board_ids: string[] }
         Returns: {
@@ -359,6 +456,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      reserve_stickers: { Args: { p_board_ids: string[] }; Returns: string[] }
       update_board_status: {
         Args: {
           p_board_id: string
@@ -384,6 +482,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      update_sticker_status: {
+        Args: {
+          p_board_id: string
+          p_note?: string
+          p_status: Database["public"]["Enums"]["sticker_status"]
+        }
+        Returns: {
+          board_id: string
+          status: Database["public"]["Enums"]["sticker_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "board_stickers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       poster_board_status:
@@ -393,6 +509,7 @@ export type Database = {
         | "done"
         | "error_wrong_poster"
         | "other"
+      sticker_status: "not_yet" | "reserved" | "done" | "issue"
     }
     CompositeTypes: {
       register_volunteer_result: {
@@ -531,6 +648,7 @@ export const Constants = {
         "error_wrong_poster",
         "other",
       ],
+      sticker_status: ["not_yet", "reserved", "done", "issue"],
     },
   },
 } as const

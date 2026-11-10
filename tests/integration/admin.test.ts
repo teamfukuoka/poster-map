@@ -1466,6 +1466,8 @@ describe("admin service", () => {
 
   test("setForceHidden と resetRehearsal", async () => {
     const { client } = await signInStaff("admin");
+    // 既定の期限（11/1 0:00）は過ぎているので、リセットできる間の動きを先に見るため期限を先に延ばす
+    await setAdminSettings({ rehearsalResetUntil: "now() + interval '1 day'" });
     expect(await setForceHidden(client, true)).toEqual({ ok: true, data: null });
     const dashboard = await loadDashboard(client);
     expect(dashboard.ok && dashboard.data.site.force_hidden).toBe(true);
